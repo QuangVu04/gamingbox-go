@@ -1,0 +1,11 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  presets:
+    - bugs         # Thay cho govet, staticcheck
+    - unused       # Kiểm tra code thừa
+    - complexity   # Kiểm tra code quá rắc rối
+    - style        # Thay cho các bộ linter về trình bày
