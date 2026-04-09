@@ -2,7 +2,7 @@ services:
   # Redis Service
   redis:
     image: redis:7.2-alpine 
-    container_name: vault_redis
+    container_name: gamebox
     ports:
       - "6379:6379"
     volumes:
@@ -14,7 +14,7 @@ services:
   #ui cho reddis nhưng tự tìm phiên bản phù hợp đên khi chạy được
   redisinsight:
     image: redis/redisinsight:2.46
-    container_name: vault_redis_ui
+    container_name: redis_ui
     user: root
     ports:
       - "8888:8001"
