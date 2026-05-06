@@ -47,9 +47,14 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	}
 
 	users := v1.Group("/users")
-	users.Use(middleware.Authenticate())
 	{
-		users.GET("/me", userHandler.Me)
+		users.GET("/profile", userHandler.GetProfile)
+
+		usersProtected := users.Group("")
+		usersProtected.Use(middleware.Authenticate())
+		{
+			usersProtected.GET("/me", userHandler.Me)
+		}
 	}
 
 	games := v1.Group("/games")

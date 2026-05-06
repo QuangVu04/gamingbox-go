@@ -126,6 +126,13 @@ definitions:
       weekly_likes_count:
         type: integer
     type: object
+  dto.MessageResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
   dto.PaginatedResponse-array_dto_GameTrendingResponse:
     properties:
       data:
@@ -190,6 +197,17 @@ definitions:
         type: number
       total_ratings:
         type: integer
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      new_password:
+        minLength: 8
+        type: string
+      reset_token:
+        type: string
+    required:
+    - new_password
+    - reset_token
     type: object
   dto.ReviewGameInfo:
     properties:
@@ -275,6 +293,11 @@ definitions:
       data:
         $ref: '#/definitions/dto.UserProfileResponse'
     type: object
+  dto.SuccessResponse-dto_VerifyCodeResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.VerifyCodeResponse'
+    type: object
   dto.UserProfileResponse:
     properties:
       avatar_url:
@@ -357,6 +380,21 @@ definitions:
       username:
         type: string
     type: object
+  dto.VerifyCodeRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  dto.VerifyCodeResponse:
+    properties:
+      reset_token:
+        type: string
+    type: object
   handlers.loginRequest:
     properties:
       email:
@@ -431,9 +469,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/dto.MessageResponse'
       summary: Quên mật khẩu
       tags:
       - Authentication
@@ -481,9 +517,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/dto.MessageResponse'
       summary: Đăng xuất
       tags:
       - Authentication
@@ -558,6 +592,32 @@ paths:
       summary: Đăng ký tài khoản
       tags:
       - Authentication
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Đặt lại mật khẩu bằng token được cấp từ bước xác thực
+      parameters:
+      - description: Thông tin đổi mật khẩu
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Đặt lại mật khẩu
+      tags:
+      - Authentication
   /auth/steam:
     get:
       description: Chuyển hướng người dùng đến trang đăng nhập Steam OpenID
@@ -586,6 +646,32 @@ paths:
       summary: Steam Callback
       tags:
       - Authentication (Steam)
+  /auth/verify-code:
+    post:
+      consumes:
+      - application/json
+      description: Xác thực mã 6 số gửi qua email để lấy token đổi mật khẩu
+      parameters:
+      - description: Mã xác thực
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_VerifyCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Xác thực mã khôi phục
+      tags:
+      - Authentication
   /games/{game_id}/like:
     post:
       description: Thích hoặc Bỏ thích một game (Cần đăng nhập)
@@ -788,6 +874,33 @@ paths:
       security:
       - BearerAuth: []
       summary: Lấy Profile Người dùng
+      tags:
+      - Users
+  /users/profile:
+    get:
+      description: Lấy thông tin profile đầy đủ của một người dùng dựa theo ID
+      parameters:
+      - description: ID của Người dùng
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_UserProfileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Xem Profile người dùng khác
       tags:
       - Users
 securityDefinitions:

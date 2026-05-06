@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	_ "vault/be/internal/dto"
 	"vault/be/internal/middleware"
@@ -42,4 +43,36 @@ func (h *UserHandler) Me(c *gin.Context) {
 	}
 
 	utils.Success(c, http.StatusOK, result)
+}
+
+// GetProfile godoc
+// @Summary      Xem Profile người dùng khác
+// @Description  Lấy thông tin profile đầy đủ của một người dùng dựa theo ID
+// @Tags         Users
+// @Produce      json
+// @Param        id query int true "ID của Người dùng"
+// @Success      200  {object}  dto.SuccessResponse[dto.UserProfileResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      404  {object}  dto.ErrorResponse
+// @Router       /users/profile [get]
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	idStr := c.Query("id")
+	if idStr == "" {
+		utils.ValidationError(c, "Vui lòng cung cấp ID người dùng")
+		return
+	}
+
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+
+	profile, err := h.userService.GetUserProfile(uint(userID))
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, profile)
 }
