@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"vault/be/config"
+	_ "vault/be/internal/dto"
 	"vault/be/internal/services"
 	"vault/be/pkg/utils"
 
@@ -28,6 +29,12 @@ func NewSteamHandler(authService services.AuthService) *SteamHandler {
 	}
 }
 
+// LoginHandle godoc
+// @Summary      Đăng nhập bằng Steam
+// @Description  Chuyển hướng người dùng đến trang đăng nhập Steam OpenID
+// @Tags         Authentication (Steam)
+// @Success      302  "Redirect"
+// @Router       /auth/steam [get]
 func (h *SteamHandler) LoginHandle(c *gin.Context) {
 	url, err := openid.RedirectURL(config.App.SteamOpenIdUrl, config.App.ReturnUrl, "")
 	if err != nil {
@@ -38,6 +45,14 @@ func (h *SteamHandler) LoginHandle(c *gin.Context) {
 	c.Redirect(http.StatusFound, url)
 }
 
+// CallbackHandle godoc
+// @Summary      Steam Callback
+// @Description  Xử lý callback trả về từ Steam OpenID sau khi đăng nhập thành công
+// @Tags         Authentication (Steam)
+// @Success      200  {string}  string "HTML Script trả về Frontend"
+// @Failure      401  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /auth/steam/callback [get]
 func (h *SteamHandler) CallbackHandle(c *gin.Context) {
     scheme := "http"
     if c.Request.TLS != nil {

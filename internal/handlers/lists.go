@@ -21,6 +21,16 @@ func NewListHandler(listService services.ListService) *ListHandler {
 	}
 }
 
+// TrendingLists godoc
+// @Summary      Lấy danh sách List thịnh hành
+// @Description  Lấy danh sách list phổ biến có phân trang
+// @Tags         Lists
+// @Produce      json
+// @Param        page query int false "Trang hiện tại (Mặc định 1)"
+// @Param        limit query int false "Số lượng mỗi trang (Mặc định 10)"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.ListTrendingResponse]
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /lists/trending [get]
 func (h *ListHandler) TrendingLists(c *gin.Context) {
 	// Parse pagination parameters using request utility
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)

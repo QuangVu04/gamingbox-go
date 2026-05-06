@@ -38,6 +38,16 @@ type logoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// Register godoc
+// @Summary      Đăng ký tài khoản
+// @Description  Đăng ký tài khoản mới bằng email và mật khẩu
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        request body registerRequest true "Thông tin đăng ký"
+// @Success      201  {object}  dto.SuccessResponse[dto.AuthResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +68,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	utils.Success(c, http.StatusCreated, result)
 }
 
+// Login godoc
+// @Summary      Đăng nhập
+// @Description  Đăng nhập bằng email và mật khẩu để nhận token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        request body loginRequest true "Thông tin đăng nhập"
+// @Success      200  {object}  dto.SuccessResponse[dto.AuthResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -77,6 +97,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	utils.Success(c, http.StatusOK, result)
 }
 
+// Me godoc
+// @Summary      Lấy thông tin cá nhân
+// @Description  Lấy thông tin của người dùng đang đăng nhập
+// @Tags         Authentication
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  dto.SuccessResponse[dto.UserProfileResponse]
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -93,6 +122,16 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	utils.Success(c, http.StatusOK, user)
 }
 
+// RefreshToken godoc
+// @Summary      Làm mới token
+// @Description  Lấy access token mới bằng refresh token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        request body refreshRequest true "Refresh Token"
+// @Success      200  {object}  dto.SuccessResponse[dto.AuthResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -109,6 +148,15 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	utils.Success(c, http.StatusOK, result)
 }
 
+// Logout godoc
+// @Summary      Đăng xuất
+// @Description  Xóa refresh token để đăng xuất
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        request body logoutRequest true "Refresh Token"
+// @Success      200  {object}  map[string]string
+// @Router       /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req logoutRequest
 	_ = c.ShouldBindJSON(&req)

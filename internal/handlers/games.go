@@ -22,6 +22,16 @@ func NewGameHandler(gameService services.GameService) *GameHandler {
 	}
 }
 
+// TrendingGames godoc
+// @Summary      Lấy danh sách game thịnh hành
+// @Description  Lấy danh sách game phổ biến có phân trang
+// @Tags         Games
+// @Produce      json
+// @Param        page query int false "Trang hiện tại (Mặc định 1)"
+// @Param        limit query int false "Số lượng mỗi trang (Mặc định 12)"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.GameTrendingResponse]
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games/trending [get]
 func (h *GameHandler) TrendingGames(c *gin.Context) {
 	// Parse pagination parameters using request utility
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
@@ -55,6 +65,18 @@ func (h *GameHandler) TrendingGames(c *gin.Context) {
 	})
 }
 
+// RateGame godoc
+// @Summary      Đánh giá Game
+// @Description  Đánh giá sao cho một game (Cần đăng nhập)
+// @Tags         Games
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.RateGameRequest true "Thông tin đánh giá"
+// @Success      200  {object}  dto.SuccessResponse[dto.RateGameResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /games/rate [post]
 func (h *GameHandler) RateGame(c *gin.Context) {
 	// Get user from context
 	userID, ok := middleware.GetCurrentUserID(c)

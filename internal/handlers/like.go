@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	_ "vault/be/internal/dto"
 	"vault/be/internal/middleware"
 	"vault/be/internal/services"
 	"vault/be/pkg/utils"
@@ -22,8 +23,16 @@ func NewLikeHandler(likeService services.LikeService) *LikeHandler {
 	}
 }
 
-// LikeGame handles like/unlike for games
-// POST /api/v1/games/:game_id/like
+// LikeGame godoc
+// @Summary      Thích hoặc Bỏ thích Game
+// @Description  Thích hoặc Bỏ thích một game (Cần đăng nhập)
+// @Tags         Likes
+// @Security     BearerAuth
+// @Produce      json
+// @Param        game_id path int true "ID của Game"
+// @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /games/{game_id}/like [post]
 func (h *LikeHandler) LikeGame(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -48,8 +57,16 @@ func (h *LikeHandler) LikeGame(c *gin.Context) {
 	utils.Success(c, http.StatusOK, result)
 }
 
-// LikeReview handles like/unlike for reviews
-// POST /api/v1/reviews/:review_id/like
+// LikeReview godoc
+// @Summary      Thích hoặc Bỏ thích Review
+// @Description  Thích hoặc Bỏ thích một review (Cần đăng nhập)
+// @Tags         Likes
+// @Security     BearerAuth
+// @Produce      json
+// @Param        review_id path int true "ID của Review"
+// @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /reviews/{review_id}/like [post]
 func (h *LikeHandler) LikeReview(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -74,8 +91,16 @@ func (h *LikeHandler) LikeReview(c *gin.Context) {
 	utils.Success(c, http.StatusOK, result)
 }
 
-// LikeList handles like/unlike for lists
-// POST /api/v1/lists/:list_id/like
+// LikeList godoc
+// @Summary      Thích hoặc Bỏ thích List
+// @Description  Thích hoặc Bỏ thích một list (Cần đăng nhập)
+// @Tags         Likes
+// @Security     BearerAuth
+// @Produce      json
+// @Param        list_id path int true "ID của List"
+// @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /lists/{list_id}/like [post]
 func (h *LikeHandler) LikeList(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {

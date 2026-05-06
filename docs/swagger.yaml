@@ -1,0 +1,766 @@
+basePath: /api/v1
+definitions:
+  dto.ActivitySummary:
+    properties:
+      action_type:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      preview:
+        type: string
+      target_id:
+        type: integer
+      target_type:
+        type: string
+    type: object
+  dto.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.DiaryEntry:
+    properties:
+      game:
+        $ref: '#/definitions/dto.GameSummary'
+      logged_at:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      code:
+        type: string
+      error:
+        type: string
+      field:
+        type: string
+    type: object
+  dto.GameSummary:
+    properties:
+      avg_rating:
+        type: number
+      id:
+        type: integer
+      is_free:
+        type: boolean
+      poster:
+        type: string
+      price:
+        type: number
+      release_date:
+        type: string
+      review_count:
+        type: integer
+      steam_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  dto.GameTrendingResponse:
+    properties:
+      avg_rating:
+        type: number
+      game_id:
+        type: integer
+      release_date:
+        type: string
+      studios:
+        items:
+          type: string
+        type: array
+      thumbnail:
+        type: string
+      title:
+        type: string
+      total_reviews:
+        type: integer
+      trending_score:
+        type: integer
+    type: object
+  dto.LikeGameResponse:
+    properties:
+      is_liked:
+        type: boolean
+    type: object
+  dto.ListAuthorInfo:
+    properties:
+      avatar:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.ListTrendingResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.ListAuthorInfo'
+      created_at:
+        type: string
+      game_count:
+        type: integer
+      list_id:
+        type: integer
+      thumbnails:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      total_likes:
+        type: integer
+      weekly_likes_count:
+        type: integer
+    type: object
+  dto.PaginatedResponse-array_dto_GameTrendingResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.GameTrendingResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
+        type: string
+    type: object
+  dto.PaginatedResponse-array_dto_ListTrendingResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.ListTrendingResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
+        type: string
+    type: object
+  dto.PaginatedResponse-array_dto_ReviewTrendingResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.ReviewTrendingResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
+        type: string
+    type: object
+  dto.PaginationDTO:
+    properties:
+      current_page:
+        type: integer
+      limit:
+        type: integer
+      total_pages:
+        type: integer
+      total_records:
+        type: integer
+    type: object
+  dto.RateGameRequest:
+    properties:
+      game_id:
+        type: integer
+      rating:
+        maximum: 5
+        minimum: 0.5
+        type: number
+    required:
+    - game_id
+    - rating
+    type: object
+  dto.RateGameResponse:
+    properties:
+      my_rating:
+        type: number
+      new_game_avg:
+        type: number
+      total_ratings:
+        type: integer
+    type: object
+  dto.ReviewGameInfo:
+    properties:
+      id:
+        type: integer
+      release_date:
+        type: string
+      thumbnail:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.ReviewSummary:
+    properties:
+      comment_count:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      game:
+        $ref: '#/definitions/dto.GameSummary'
+      id:
+        type: integer
+      img:
+        type: string
+      is_spoiler:
+        type: boolean
+      like_count:
+        type: integer
+      recommend:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.ReviewTrendingResponse:
+    properties:
+      comment_count:
+        type: integer
+      content:
+        type: string
+      created_at:
+        type: string
+      game:
+        $ref: '#/definitions/dto.ReviewGameInfo'
+      is_spoiler:
+        type: boolean
+      like_count:
+        type: integer
+      rating:
+        type: number
+      review_id:
+        type: integer
+      user:
+        $ref: '#/definitions/dto.ReviewUserInfo'
+    type: object
+  dto.ReviewUserInfo:
+    properties:
+      avatar:
+        type: string
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.SuccessResponse-dto_AuthResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.AuthResponse'
+    type: object
+  dto.SuccessResponse-dto_LikeGameResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.LikeGameResponse'
+    type: object
+  dto.SuccessResponse-dto_RateGameResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.RateGameResponse'
+    type: object
+  dto.SuccessResponse-dto_UserProfileResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UserProfileResponse'
+    type: object
+  dto.UserProfileResponse:
+    properties:
+      avatar_url:
+        type: string
+      average_rating:
+        type: number
+      backlog_games:
+        items:
+          $ref: '#/definitions/dto.GameSummary'
+        type: array
+      bio:
+        type: string
+      created_at:
+        type: string
+      diary:
+        items:
+          $ref: '#/definitions/dto.DiaryEntry'
+        type: array
+      email:
+        type: string
+      follower_count:
+        type: integer
+      following_count:
+        type: integer
+      game_logs_count:
+        type: integer
+      id:
+        type: integer
+      list_count:
+        type: integer
+      popular_reviews:
+        items:
+          $ref: '#/definitions/dto.ReviewSummary'
+        type: array
+      recent_activity:
+        items:
+          $ref: '#/definitions/dto.ActivitySummary'
+        type: array
+      recent_reviews:
+        items:
+          $ref: '#/definitions/dto.ReviewSummary'
+        type: array
+      review_count:
+        type: integer
+      role:
+        $ref: '#/definitions/models.UserRole'
+      steam_id:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UserResponse:
+    properties:
+      avatar_url:
+        type: string
+      average_rating_count:
+        type: number
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      follower_count:
+        type: integer
+      following_count:
+        type: integer
+      game_logs_count:
+        type: integer
+      id:
+        type: integer
+      list_count:
+        type: integer
+      review_count:
+        type: integer
+      role:
+        $ref: '#/definitions/models.UserRole'
+      steam_id:
+        type: string
+      username:
+        type: string
+    type: object
+  handlers.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  handlers.logoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  handlers.refreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  handlers.registerRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  models.UserRole:
+    enum:
+    - user
+    - influencer
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleUser
+    - RoleInfluencer
+    - RoleAdmin
+host: localhost:8080
+info:
+  contact: {}
+  description: Hệ thống API cho Gaming Box.
+  title: Gaming Box API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Đăng nhập bằng email và mật khẩu để nhận token
+      parameters:
+      - description: Thông tin đăng nhập
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Đăng nhập
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Xóa refresh token để đăng xuất
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.logoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Đăng xuất
+      tags:
+      - Authentication
+  /auth/me:
+    get:
+      description: Lấy thông tin của người dùng đang đăng nhập
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Lấy thông tin cá nhân
+      tags:
+      - Authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Lấy access token mới bằng refresh token
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.refreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Làm mới token
+      tags:
+      - Authentication
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Đăng ký tài khoản mới bằng email và mật khẩu
+      parameters:
+      - description: Thông tin đăng ký
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Đăng ký tài khoản
+      tags:
+      - Authentication
+  /auth/steam:
+    get:
+      description: Chuyển hướng người dùng đến trang đăng nhập Steam OpenID
+      responses:
+        "302":
+          description: Redirect
+      summary: Đăng nhập bằng Steam
+      tags:
+      - Authentication (Steam)
+  /auth/steam/callback:
+    get:
+      description: Xử lý callback trả về từ Steam OpenID sau khi đăng nhập thành công
+      responses:
+        "200":
+          description: HTML Script trả về Frontend
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Steam Callback
+      tags:
+      - Authentication (Steam)
+  /games/{game_id}/like:
+    post:
+      description: Thích hoặc Bỏ thích một game (Cần đăng nhập)
+      parameters:
+      - description: ID của Game
+        in: path
+        name: game_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_LikeGameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Thích hoặc Bỏ thích Game
+      tags:
+      - Likes
+  /games/rate:
+    post:
+      consumes:
+      - application/json
+      description: Đánh giá sao cho một game (Cần đăng nhập)
+      parameters:
+      - description: Thông tin đánh giá
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_RateGameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Đánh giá Game
+      tags:
+      - Games
+  /games/trending:
+    get:
+      description: Lấy danh sách game phổ biến có phân trang
+      parameters:
+      - description: Trang hiện tại (Mặc định 1)
+        in: query
+        name: page
+        type: integer
+      - description: Số lượng mỗi trang (Mặc định 12)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_GameTrendingResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Lấy danh sách game thịnh hành
+      tags:
+      - Games
+  /lists/{list_id}/like:
+    post:
+      description: Thích hoặc Bỏ thích một list (Cần đăng nhập)
+      parameters:
+      - description: ID của List
+        in: path
+        name: list_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_LikeGameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Thích hoặc Bỏ thích List
+      tags:
+      - Likes
+  /lists/trending:
+    get:
+      description: Lấy danh sách list phổ biến có phân trang
+      parameters:
+      - description: Trang hiện tại (Mặc định 1)
+        in: query
+        name: page
+        type: integer
+      - description: Số lượng mỗi trang (Mặc định 10)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_ListTrendingResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Lấy danh sách List thịnh hành
+      tags:
+      - Lists
+  /reviews/{review_id}/like:
+    post:
+      description: Thích hoặc Bỏ thích một review (Cần đăng nhập)
+      parameters:
+      - description: ID của Review
+        in: path
+        name: review_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_LikeGameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Thích hoặc Bỏ thích Review
+      tags:
+      - Likes
+  /reviews/trending:
+    get:
+      description: Lấy danh sách review phổ biến có phân trang
+      parameters:
+      - description: Trang hiện tại (Mặc định 1)
+        in: query
+        name: page
+        type: integer
+      - description: Số lượng mỗi trang (Mặc định 10)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_ReviewTrendingResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Lấy danh sách Review thịnh hành
+      tags:
+      - Reviews
+  /users/me:
+    get:
+      description: Lấy thông tin profile đầy đủ của người dùng (Cần đăng nhập)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Lấy Profile Người dùng
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

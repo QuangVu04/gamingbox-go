@@ -21,6 +21,16 @@ func NewReviewHandler(reviewService services.ReviewService) *ReviewHandler {
 	}
 }
 
+// TrendingReviews godoc
+// @Summary      Lấy danh sách Review thịnh hành
+// @Description  Lấy danh sách review phổ biến có phân trang
+// @Tags         Reviews
+// @Produce      json
+// @Param        page query int false "Trang hiện tại (Mặc định 1)"
+// @Param        limit query int false "Số lượng mỗi trang (Mặc định 10)"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.ReviewTrendingResponse]
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /reviews/trending [get]
 func (h *ReviewHandler) TrendingReviews(c *gin.Context) {
 	// Parse pagination parameters using request utility
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
