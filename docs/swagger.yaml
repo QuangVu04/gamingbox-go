@@ -951,6 +951,40 @@ paths:
       summary: Lấy Profile Người dùng
       tags:
       - Users
+  /users/me/followers:
+    get:
+      description: Lấy danh sách những người dùng đang follow current user
+      parameters:
+      - default: 1
+        description: Trang hiện tại
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Số lượng hiển thị trên mỗi trang
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_UserSummary'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Lấy danh sách người theo dõi
+      tags:
+      - Users
   /users/me/following:
     get:
       description: Lấy danh sách những người dùng mà current user đang follow

@@ -55,6 +55,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		{
 			usersProtected.GET("/me", userHandler.Me)
 			usersProtected.GET("/me/following", userHandler.GetFollowing)
+			usersProtected.GET("/me/followers", userHandler.GetFollowers)
 			usersProtected.POST("/follow", userHandler.FollowUser)
 		}
 	}

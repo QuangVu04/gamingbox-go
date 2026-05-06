@@ -15,6 +15,7 @@ type UserRepository interface {
     Update(user *models.User) error
     ToggleFollow(followerID, followingID uint) (bool, error)
     GetFollowing(userID uint, offset, limit int) ([]models.User, int64, error)
+    GetFollowers(userID uint, offset, limit int) ([]models.User, int64, error)
 }
 
 type userRepository struct {
@@ -118,6 +119,30 @@ func (r *userRepository) GetFollowing(userID uint, offset, limit int) ([]models.
 	err := r.db.
 		Joins("JOIN follows ON follows.following_id = users.id").
 		Where("follows.follower_id = ?", userID).
+		Offset(offset).
+		Limit(limit).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+func (r *userRepository) GetFollowers(userID uint, offset, limit int) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+
+	// Count total followers
+	if err := r.db.Model(&models.Follow{}).Where("following_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch users who are following this user
+	err := r.db.
+		Joins("JOIN follows ON follows.follower_id = users.id").
+		Where("follows.following_id = ?", userID).
 		Offset(offset).
 		Limit(limit).
 		Find(&users).Error
