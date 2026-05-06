@@ -2,6 +2,7 @@ package database
 
 import (
     "context"
+    "os"
     "time"
     "github.com/redis/go-redis/v9"
 )
@@ -9,8 +10,13 @@ import (
 var RDB *redis.Client
 
 func InitRedis() error {
+    redisAddr := os.Getenv("REDIS_HOST")
+    if redisAddr == "" {
+        redisAddr = "127.0.0.1:6379"
+    }
+
     RDB = redis.NewClient(&redis.Options{
-        Addr:         "127.0.0.1:6379",
+        Addr:         redisAddr,
         Password:     "", // Mặc định là trống
         DB:           0,  // Database index
         DialTimeout:  5 * time.Second,

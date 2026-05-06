@@ -35,10 +35,12 @@ func New() *App {
 	return &App{DB: db, RDB: database.RDB}
 }
 
-func (a *App) Run() {
-	// 4. Seed and Initialize logic
+func (a *App) Seed() {
 	seeders.SeedAdmin(a.DB)
+	seeders.SeedRandomData(a.DB)
+}
 
+func (a *App) Run() {
 	userRepo := repositories.NewUserRepository(a.DB)
 	tokenRepo := repositories.NewRefreshTokenRepository(a.DB)
 	reviewRepo := repositories.NewReviewRepository(a.DB)
