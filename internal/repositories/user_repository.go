@@ -12,6 +12,7 @@ type UserRepository interface {
     FindByEmail(email string) (*models.User, error)
     FindByUsername(username string) (*models.User, error)
     FindBySteamID(steamID string) (*models.User, error)
+    Update(user *models.User) error
 }
 
 type userRepository struct {
@@ -56,4 +57,8 @@ func (r *userRepository) FindByUsername(username string) (*models.User, error) {
         return nil, err
     }
     return &user, nil
+}
+
+func (r *userRepository) Update(user *models.User) error {
+    return r.db.Save(user).Error
 }

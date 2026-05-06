@@ -1,10 +1,15 @@
 package services
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	mathRand "math/rand"
 	"time"
 
 	"vault/be/config"
+	"vault/be/database"
 	"vault/be/internal/dto"
     "vault/be/internal/dto/mapper"
 	"vault/be/internal/models"
@@ -26,6 +31,9 @@ type AuthService interface {
     RefreshTokens(tokenString string) (*dto.AuthResponse, error)
     Logout(tokenString string)
     LoginWithSteam(steamID64 string) (*dto.AuthResponse, error)
+    ForgotPassword(email string) error
+    VerifyCode(req dto.VerifyCodeRequest) (*dto.VerifyCodeResponse, error)
+    ResetPassword(req dto.ResetPasswordRequest) error
 }
 
 type authService struct {
@@ -167,6 +175,99 @@ func (s *authService) Logout(tokenString string) {
     if tokenString != "" {
         _ = s.tokenRepo.Revoke(tokenString)
     }
+}
+
+func (s *authService) ForgotPassword(email string) error {
+    // Check if user exists
+    _, err := s.userRepo.FindByEmail(email)
+    if err != nil {
+        // We still return nil to prevent email enumeration attacks
+        return nil
+    }
+
+    // Generate 6-digit code
+    code := fmt.Sprintf("%06d", mathRand.Intn(1000000))
+    
+    // Store in Redis with 15 mins expiration
+    ctx := context.Background()
+    err = database.RDB.Set(ctx, "reset_code:"+email, code, 15*time.Minute).Err()
+    if err != nil {
+        return dto.NewServiceError("SERVER_ERROR", "Không thể tạo mã xác nhận")
+    }
+
+    fmt.Printf("====[TESTING] Mã xác nhận cho %s là: %s ====\n", email, code)
+
+    // Send email
+    go func() {
+        body := fmt.Sprintf("Xin chào,\n\nMã xác nhận để đặt lại mật khẩu của bạn là: %s\nMã này sẽ hết hạn trong vòng 15 phút.\n\nTrân trọng,\nĐội ngũ GamingBox", code)
+        err := utils.SendEmail(email, "Mã xác nhận đặt lại mật khẩu", body)
+        if err != nil {
+            fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", email, err)
+        } else {
+            fmt.Printf("====[THÀNH CÔNG] Đã gửi email tới %s ====\n", email)
+        }
+    }()
+
+    return nil
+}
+
+func (s *authService) VerifyCode(req dto.VerifyCodeRequest) (*dto.VerifyCodeResponse, error) {
+    ctx := context.Background()
+
+    // Verify code from Redis
+    storedCode, err := database.RDB.Get(ctx, "reset_code:"+req.Email).Result()
+    if err != nil || storedCode != req.Code {
+        return nil, dto.NewFieldError("INVALID_CODE", "Mã xác nhận không đúng hoặc đã hết hạn", "code")
+    }
+
+    // Delete the code
+    database.RDB.Del(ctx, "reset_code:"+req.Email)
+
+    // Generate a secure reset token
+    b := make([]byte, 32)
+    rand.Read(b)
+    resetToken := hex.EncodeToString(b)
+
+    // Store the token with the email for 15 mins
+    err = database.RDB.Set(ctx, "reset_token:"+resetToken, req.Email, 15*time.Minute).Err()
+    if err != nil {
+        return nil, dto.NewServiceError("SERVER_ERROR", "Không thể tạo token đặt lại mật khẩu")
+    }
+
+    return &dto.VerifyCodeResponse{ResetToken: resetToken}, nil
+}
+
+func (s *authService) ResetPassword(req dto.ResetPasswordRequest) error {
+    ctx := context.Background()
+    
+    // Get email from token
+    email, err := database.RDB.Get(ctx, "reset_token:"+req.ResetToken).Result()
+    if err != nil {
+        return dto.NewFieldError("INVALID_TOKEN", "Token không hợp lệ hoặc đã hết hạn", "reset_token")
+    }
+
+    // Get user
+    user, err := s.userRepo.FindByEmail(email)
+    if err != nil {
+        return dto.NewServiceError("USER_NOT_FOUND", "Không tìm thấy tài khoản")
+    }
+
+    // Hash new password
+    hashedPassword, err := utils.HashPassword(req.NewPassword)
+    if err != nil {
+        return dto.NewServiceError("SERVER_ERROR", "Không thể xử lý mật khẩu")
+    }
+
+    // Update password
+    user.Password = hashedPassword
+    if err := s.userRepo.Update(user); err != nil {
+        return dto.NewServiceError("SERVER_ERROR", "Không thể cập nhật mật khẩu")
+    }
+
+    // Delete the token
+    database.RDB.Del(ctx, "reset_token:"+req.ResetToken)
+
+    return nil
 }
 
 func (s *authService) buildAuthResponse(user *models.User) (*dto.AuthResponse, error) {

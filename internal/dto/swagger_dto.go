@@ -18,3 +18,9 @@ type PaginatedResponse[T any] struct {
 	Pagination PaginationDTO `json:"pagination"`
 	Data       T             `json:"data"`
 }
+
+// MessageResponse đại diện cho trả về chỉ có status và message
+type MessageResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}

@@ -30,6 +30,11 @@ type Config struct {
 	SteamOpenIdUrl string
 	SteamApiKey    string
 	SteamApiUrl    string
+
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
 }
 
 var App *Config
@@ -97,6 +102,11 @@ func Load() {
 		SteamOpenIdUrl:    getEnv("STEAM_OPEN_ID_URL", "https://steamcommunity.com/openid/login"),
 		SteamApiKey:       getEnv("STEAM_API_KEY", ""),
 		SteamApiUrl:       getEnv("STEAM_API_URL", "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=%s&steamids=%s"),
+
+		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPUser:     getEnv("SMTP_USER", "example@gmail.com"),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
 	}
 }
 

@@ -44,6 +44,13 @@ definitions:
       field:
         type: string
     type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   dto.GameSummary:
     properties:
       avg_rating:
@@ -405,6 +412,31 @@ info:
   title: Gaming Box API
   version: "1.0"
 paths:
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Gửi yêu cầu khôi phục mật khẩu. (Luôn trả về thành công để bảo
+        mật)
+      parameters:
+      - description: Email đăng ký
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Quên mật khẩu
+      tags:
+      - Authentication
   /auth/login:
     post:
       consumes:
