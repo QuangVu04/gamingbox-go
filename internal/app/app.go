@@ -10,6 +10,8 @@ import (
 	"vault/be/internal/routes"
 	"vault/be/internal/seeders"
 	"vault/be/internal/services"
+	"vault/be/internal/workers"
+	"context"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -50,13 +52,17 @@ func (a *App) Run() {
 	ratingRepo := repositories.NewRatingRepository(a.DB)
 	gameRepo := repositories.NewGameRepository(a.DB)
 	likeRepo := repositories.NewLikeRepository(a.DB)
+	notificationRepo := repositories.NewNotificationRepository(a.DB)
+
 
 	authService := services.NewAuthService(userRepo, tokenRepo)
-	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo)
+	notificationService := services.NewNotificationService(notificationRepo)
+	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo, notificationService)
 	gameService := services.NewGameService(gameRepo, ratingRepo, a.DB, a.RDB)
 	reviewService := services.NewReviewService(reviewRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
-	likeService := services.NewLikeService(likeRepo, a.RDB)
+	likeService := services.NewLikeService(likeRepo, a.RDB, notificationService, reviewRepo, listRepo)
+
 
 	authH := handlers.NewAuthHandler(authService)
 	steamH := handlers.NewSteamHandler(authService)
@@ -65,6 +71,7 @@ func (a *App) Run() {
 	reviewH := handlers.NewReviewHandler(reviewService)
 	listH := handlers.NewListHandler(listService)
 	likeH := handlers.NewLikeHandler(likeService)
+	notifH := handlers.NewNotificationHandler(notificationService)
 
 	cronMgr, err := cron.NewCronManager(a.RDB, gameService, reviewService, listService)
 	if err != nil {
@@ -73,8 +80,13 @@ func (a *App) Run() {
 	if err := cronMgr.Start(); err != nil {
 		log.Fatal("Không thể start Cron jobs:", err)
 	}
-	// 4. Setup Routes
-	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH)
+
+	// 4. Start Notification Worker
+	notificationWorker := workers.NewNotificationWorker(notificationService)
+	go notificationWorker.Start(context.Background())
+
+	// 5. Setup Routes
+	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH)
 
 	log.Printf("Server starting on port %s", config.App.Port)
 	r.Run(":" + config.App.Port)

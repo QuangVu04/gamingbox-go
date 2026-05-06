@@ -23,6 +23,7 @@ type ListRepository interface {
 	GetBacklogByUserID(userID uint) (*models.List, error)
 	GetBacklogEntries(listID uint, limit int) ([]models.ListEntry, error)
 	GetTrendingLists(page, limit int) ([]ListTrendingData, int64, error)
+	FindByID(id uint) (*models.List, error)
 }
 
 type listRepository struct {
@@ -116,4 +117,13 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
     }
 
     return listsData, total, nil
+}
+
+func (r *listRepository) FindByID(id uint) (*models.List, error) {
+    var list models.List
+    err := r.db.First(&list, id).Error
+    if err != nil {
+        return nil, err
+    }
+    return &list, nil
 }

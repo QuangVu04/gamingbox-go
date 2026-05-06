@@ -24,3 +24,9 @@ type MessageResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
+
+// Dummy types for swag to handle generics with slices
+var (
+	_ PaginatedResponse[[]NotificationResponse]
+	_ PaginatedResponse[[]UserSummary]
+)

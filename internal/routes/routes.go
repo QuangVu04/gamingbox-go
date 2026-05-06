@@ -11,7 +11,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler, notifHandler *handlers.NotificationHandler) *gin.Engine {
 	if config.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -87,6 +87,14 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		likesGroup.POST("/games/:game_id/like", likeHandler.LikeGame)
 		likesGroup.POST("/reviews/:review_id/like", likeHandler.LikeReview)
 		likesGroup.POST("/lists/:list_id/like", likeHandler.LikeList)
+	}
+
+	notifications := v1.Group("/notifications")
+	notifications.Use(middleware.Authenticate())
+	{
+		notifications.GET("", notifHandler.GetNotifications)
+		notifications.POST("/:id/read", notifHandler.MarkAsRead)
+		notifications.POST("/read-all", notifHandler.MarkAllAsRead)
 	}
 
 	return r

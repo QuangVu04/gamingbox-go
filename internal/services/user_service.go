@@ -24,6 +24,7 @@ type userService struct {
 	listRepo        repositories.ListRepository
 	activityLogRepo repositories.ActivityLogRepository
 	ratingRepo      repositories.RatingRepository
+	notifService    NotificationService
 }
 
 func NewUserService(
@@ -33,6 +34,7 @@ func NewUserService(
 	listRepo repositories.ListRepository,
 	activityLogRepo repositories.ActivityLogRepository,
 	ratingRepo repositories.RatingRepository,
+	notifService NotificationService,
 ) UserService {
 	return &userService{
 		userRepo:        userRepo,
@@ -41,6 +43,7 @@ func NewUserService(
 		listRepo:        listRepo,
 		activityLogRepo: activityLogRepo,
 		ratingRepo:      ratingRepo,
+		notifService:    notifService,
 	}
 }
 
@@ -105,6 +108,17 @@ func (s *userService) ToggleFollow(followerID, followingID uint) (*dto.FollowRes
 	isFollowing, err := s.userRepo.ToggleFollow(followerID, followingID)
 	if err != nil {
 		return nil, dto.NewServiceError("SERVER_ERROR", "Không thể thực hiện chức năng follow")
+	}
+
+	// Trigger notification if followed
+	if isFollowing {
+		s.notifService.TriggerNotification(dto.NotificationTask{
+			ReceiverID: followingID,
+			SenderID:   followerID,
+			ActionType: "follow",
+			TargetID:   followingID,
+			TargetType: "user",
+		})
 	}
 
 	return &dto.FollowResponse{IsFollowing: isFollowing}, nil

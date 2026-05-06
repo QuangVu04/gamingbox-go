@@ -145,6 +145,23 @@ definitions:
       status:
         type: string
     type: object
+  dto.NotificationResponse:
+    properties:
+      action_type:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      sender_id:
+        type: integer
+      target_id:
+        type: integer
+      target_type:
+        type: string
+    type: object
   dto.PaginatedResponse-array_dto_GameTrendingResponse:
     properties:
       data:
@@ -161,6 +178,17 @@ definitions:
       data:
         items:
           $ref: '#/definitions/dto.ListTrendingResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
+        type: string
+    type: object
+  dto.PaginatedResponse-array_dto_NotificationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.NotificationResponse'
         type: array
       pagination:
         $ref: '#/definitions/dto.PaginationDTO'
@@ -845,6 +873,72 @@ paths:
       summary: Lấy danh sách List thịnh hành
       tags:
       - Lists
+  /notifications:
+    get:
+      description: Lấy danh sách thông báo của người dùng hiện tại (Cần đăng nhập)
+      parameters:
+      - default: 1
+        description: Trang hiện tại
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Số lượng hiển thị trên mỗi trang
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_NotificationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Lấy danh sách thông báo
+      tags:
+      - Notifications
+  /notifications/{id}/read:
+    post:
+      description: Đánh dấu một thông báo cụ thể là đã đọc
+      parameters:
+      - description: ID của thông báo
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+      security:
+      - BearerAuth: []
+      summary: Đánh dấu đã đọc một thông báo
+      tags:
+      - Notifications
+  /notifications/read-all:
+    post:
+      description: Đánh dấu tất cả thông báo của người dùng hiện tại là đã đọc
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+      security:
+      - BearerAuth: []
+      summary: Đánh dấu đã đọc tất cả thông báo
+      tags:
+      - Notifications
   /reviews/{review_id}/like:
     post:
       description: Thích hoặc Bỏ thích một review (Cần đăng nhập)

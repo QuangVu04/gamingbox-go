@@ -17,17 +17,26 @@ type LikeService interface {
 }
 
 type likeService struct {
-	likeRepo repositories.LikeRepository
-	rdb      *redis.Client
+	likeRepo     repositories.LikeRepository
+	reviewRepo   repositories.ReviewRepository
+	listRepo     repositories.ListRepository
+	rdb          *redis.Client
+	notifService NotificationService
 }
 
 func NewLikeService(
 	likeRepo repositories.LikeRepository,
 	rdb *redis.Client,
+	notifService NotificationService,
+	reviewRepo repositories.ReviewRepository,
+	listRepo repositories.ListRepository,
 ) LikeService {
 	return &likeService{
-		likeRepo: likeRepo,
-		rdb:      rdb,
+		likeRepo:     likeRepo,
+		rdb:          rdb,
+		notifService: notifService,
+		reviewRepo:   reviewRepo,
+		listRepo:     listRepo,
 	}
 }
 
@@ -50,7 +59,39 @@ func (s *likeService) ToggleLike(ctx context.Context, userID, targetID uint, tar
 		s.invalidateTrendingCache(ctx)
 	}
 
+	// Trigger notification if liked
+	if isLiked {
+		go s.handleLikeNotification(userID, targetID, targetType)
+	}
+
 	return &dto.LikeGameResponse{IsLiked: isLiked}, nil
+}
+
+func (s *likeService) handleLikeNotification(senderID, targetID uint, targetType string) {
+	var receiverID uint
+
+	switch targetType {
+	case "review":
+		review, err := s.reviewRepo.FindByID(targetID)
+		if err == nil {
+			receiverID = review.UserID
+		}
+	case "list":
+		list, err := s.listRepo.FindByID(targetID)
+		if err == nil {
+			receiverID = list.UserID
+		}
+	}
+
+	if receiverID > 0 {
+		s.notifService.TriggerNotification(dto.NotificationTask{
+			ReceiverID: receiverID,
+			SenderID:   senderID,
+			ActionType: "like",
+			TargetID:   targetID,
+			TargetType: targetType,
+		})
+	}
 }
 
 // CheckLike checks if user has already liked the target

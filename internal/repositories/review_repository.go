@@ -12,6 +12,7 @@ type ReviewRepository interface {
 	GetPopularByUserID(userID uint, limit int) ([]models.Review, error)
 	GetCommentCounts(reviewIDs []uint) (map[uint]int, error)
 	GetTrendingReviews(page, limit int) ([]models.Review, int64, error)
+	FindByID(id uint) (*models.Review, error)
 }
 
 type reviewRepository struct {
@@ -89,4 +90,13 @@ func (r *reviewRepository) GetTrendingReviews(page, limit int) ([]models.Review,
 		Find(&reviews).Error
 
 	return reviews, total, err
+}
+
+func (r *reviewRepository) FindByID(id uint) (*models.Review, error) {
+	var review models.Review
+	err := r.db.First(&review, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &review, nil
 }
