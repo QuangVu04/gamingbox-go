@@ -13,6 +13,7 @@ import (
 type UserService interface {
 	GetUserProfile(userID uint) (*dto.UserProfileResponse, error)
 	ToggleFollow(followerID, followingID uint) (*dto.FollowResponse, error)
+	GetFollowing(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error)
 }
 
 type userService struct {
@@ -106,6 +107,50 @@ func (s *userService) ToggleFollow(followerID, followingID uint) (*dto.FollowRes
 	}
 
 	return &dto.FollowResponse{IsFollowing: isFollowing}, nil
+}
+
+func (s *userService) GetFollowing(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+
+	users, total, err := s.userRepo.GetFollowing(userID, offset, limit)
+	if err != nil {
+		return nil, dto.NewServiceError("SERVER_ERROR", "Lỗi khi lấy danh sách đang theo dõi")
+	}
+
+	var data []dto.UserSummary
+	for _, u := range users {
+		data = append(data, dto.UserSummary{
+			UserID:   u.ID,
+			Username: u.Username,
+			Avatar:   u.AvatarURL,
+			Bio:      u.Bio,
+		})
+	}
+	if data == nil {
+		data = []dto.UserSummary{}
+	}
+
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 {
+		totalPages++
+	}
+
+	return &dto.PaginatedResponse[[]dto.UserSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
 }
 
 func (s *userService) fetchRecentReviews(userID uint, limit int) ([]dto.ReviewSummary, error) {

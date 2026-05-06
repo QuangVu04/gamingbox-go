@@ -22,3 +22,11 @@ type UserResponse struct {
     AverageRating           float64         `json:"average_rating_count"`
     CreatedAt               time.Time       `json:"created_at"`
 }
+
+// UserSummary contains basic information of a user for listing
+type UserSummary struct {
+	UserID   uint    `json:"user_id"`
+	Username string  `json:"username"`
+	Avatar   *string `json:"avatar"`
+	Bio      *string `json:"bio"`
+}

@@ -112,3 +112,34 @@ func (h *UserHandler) FollowUser(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, res)
 }
+
+// GetFollowing godoc
+// @Summary      Lấy danh sách đang theo dõi
+// @Description  Lấy danh sách những người dùng mà current user đang follow
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Param        page  query int false "Trang hiện tại" default(1)
+// @Param        limit query int false "Số lượng hiển thị trên mỗi trang" default(20)
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.UserSummary]
+// @Failure      401  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /users/me/following [get]
+func (h *UserHandler) GetFollowing(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	res, err := h.userService.GetFollowing(userID, page, limit)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}

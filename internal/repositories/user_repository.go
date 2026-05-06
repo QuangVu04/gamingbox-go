@@ -14,6 +14,7 @@ type UserRepository interface {
     FindBySteamID(steamID string) (*models.User, error)
     Update(user *models.User) error
     ToggleFollow(followerID, followingID uint) (bool, error)
+    GetFollowing(userID uint, offset, limit int) ([]models.User, int64, error)
 }
 
 type userRepository struct {
@@ -102,4 +103,28 @@ func (r *userRepository) ToggleFollow(followerID, followingID uint) (bool, error
     }
     
     return false, err
+}
+
+func (r *userRepository) GetFollowing(userID uint, offset, limit int) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+
+	// Count total following
+	if err := r.db.Model(&models.Follow{}).Where("follower_id = ?", userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch users being followed
+	err := r.db.
+		Joins("JOIN follows ON follows.following_id = users.id").
+		Where("follows.follower_id = ?", userID).
+		Offset(offset).
+		Limit(limit).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
 }
