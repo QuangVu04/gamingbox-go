@@ -12,6 +12,7 @@ import (
 
 type UserService interface {
 	GetUserProfile(userID uint) (*dto.UserProfileResponse, error)
+	ToggleFollow(followerID, followingID uint) (*dto.FollowResponse, error)
 }
 
 type userService struct {
@@ -86,6 +87,25 @@ func (s *userService) GetUserProfile(userID uint) (*dto.UserProfileResponse, err
 		diary,
 		recentActivity,
 	), nil
+}
+
+func (s *userService) ToggleFollow(followerID, followingID uint) (*dto.FollowResponse, error) {
+	if followerID == followingID {
+		return nil, dto.NewServiceError("INVALID_ACTION", "Không thể tự follow chính mình")
+	}
+
+	// Kiểm tra xem user có tồn tại không
+	_, err := s.userRepo.FindByID(followingID)
+	if err != nil {
+		return nil, dto.NewServiceError("USER_NOT_FOUND", "Tài khoản không tồn tại")
+	}
+
+	isFollowing, err := s.userRepo.ToggleFollow(followerID, followingID)
+	if err != nil {
+		return nil, dto.NewServiceError("SERVER_ERROR", "Không thể thực hiện chức năng follow")
+	}
+
+	return &dto.FollowResponse{IsFollowing: isFollowing}, nil
 }
 
 func (s *userService) fetchRecentReviews(userID uint, limit int) ([]dto.ReviewSummary, error) {

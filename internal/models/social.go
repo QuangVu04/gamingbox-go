@@ -47,3 +47,9 @@ type Like struct {
 	// Composite unique index để đảm bảo một user chỉ like một item một lần
 	// Indexed as: UNIQUE KEY (user_id, target_id, target_type)
 }
+
+type Follow struct {
+	FollowerID  uint      `gorm:"primaryKey"`
+	FollowingID uint      `gorm:"primaryKey"`
+	CreatedAt   time.Time `gorm:"autoCreateTime"`
+}

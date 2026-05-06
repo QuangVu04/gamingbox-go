@@ -44,6 +44,18 @@ definitions:
       field:
         type: string
     type: object
+  dto.FollowRequest:
+    properties:
+      userId:
+        type: integer
+    required:
+    - userId
+    type: object
+  dto.FollowResponse:
+    properties:
+      is_following:
+        type: boolean
+    type: object
   dto.ForgotPasswordRequest:
     properties:
       email:
@@ -277,6 +289,11 @@ definitions:
     properties:
       data:
         $ref: '#/definitions/dto.AuthResponse'
+    type: object
+  dto.SuccessResponse-dto_FollowResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.FollowResponse'
     type: object
   dto.SuccessResponse-dto_LikeGameResponse:
     properties:
@@ -857,6 +874,42 @@ paths:
       summary: Lấy danh sách Review thịnh hành
       tags:
       - Reviews
+  /users/follow:
+    post:
+      consumes:
+      - application/json
+      description: Thực hiện follow hoặc unfollow một người dùng khác (Cần đăng nhập)
+      parameters:
+      - description: Thông tin follow
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.FollowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_FollowResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Follow / Unfollow Người dùng khác
+      tags:
+      - Users
   /users/me:
     get:
       description: Lấy thông tin profile đầy đủ của người dùng (Cần đăng nhập)

@@ -28,6 +28,14 @@ type UserProfileResponse struct {
 	RecentActivity []ActivitySummary `json:"recent_activity"`
 }
 
+type FollowRequest struct {
+	UserID uint `json:"userId" binding:"required"`
+}
+
+type FollowResponse struct {
+	IsFollowing bool `json:"is_following"`
+}
+
 //user backlog game
 type GameSummary struct {
 	ID          uint      `json:"id"`

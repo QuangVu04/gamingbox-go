@@ -13,7 +13,7 @@ func RunMigrations(db *gorm.DB) {
         &models.User{},
         &models.RefreshToken{},
 		&models.Game{}, &models.Studio{}, &models.Genre{}, &models.Platform{}, &models.GameImg{},
-        &models.Review{}, &models.Rating{}, &models.Comment{}, &models.Like{},
+        &models.Review{}, &models.Rating{}, &models.Comment{}, &models.Like{}, &models.Follow{},
         &models.List{}, &models.ListEntry{}, &models.GameLog{}, &models.Notification{}, &models.ActivityLog{},
     )
 

@@ -648,6 +648,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/users/follow": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Thực hiện follow hoặc unfollow một người dùng khác (Cần đăng nhập)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Follow / Unfollow Người dùng khác",
+                "parameters": [
+                    {
+                        "description": "Thông tin follow",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.FollowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_FollowResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/users/me": {
             "get": {
                 "security": [
@@ -787,6 +844,25 @@ const docTemplate = `{
                 },
                 "field": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.FollowRequest": {
+            "type": "object",
+            "required": [
+                "userId"
+            ],
+            "properties": {
+                "userId": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.FollowResponse": {
+            "type": "object",
+            "properties": {
+                "is_following": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1145,6 +1221,14 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/dto.AuthResponse"
+                }
+            }
+        },
+        "dto.SuccessResponse-dto_FollowResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.FollowResponse"
                 }
             }
         },

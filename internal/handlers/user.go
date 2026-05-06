@@ -8,6 +8,7 @@ import (
 	"vault/be/internal/middleware"
 	"vault/be/internal/services"
 	"vault/be/pkg/utils"
+	"vault/be/internal/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -75,4 +76,39 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	}
 
 	utils.Success(c, http.StatusOK, profile)
+}
+
+// FollowUser godoc
+// @Summary      Follow / Unfollow Người dùng khác
+// @Description  Thực hiện follow hoặc unfollow một người dùng khác (Cần đăng nhập)
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.FollowRequest true "Thông tin follow"
+// @Success      200  {object}  dto.SuccessResponse[dto.FollowResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Failure      404  {object}  dto.ErrorResponse
+// @Router       /users/follow [post]
+func (h *UserHandler) FollowUser(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req dto.FollowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	res, err := h.userService.ToggleFollow(userID, req.UserID)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, res)
 }

@@ -50,6 +50,8 @@ func handleUserServiceError(c *gin.Context, err error) {
 	switch svcErr.Code {
 	case "USER_NOT_FOUND":
 		utils.NotFound(c, svcErr.Message)
+	case "INVALID_ACTION":
+		utils.ValidationError(c, svcErr.Message)
 	case "SERVER_ERROR":
 		utils.InternalError(c)
 	default:

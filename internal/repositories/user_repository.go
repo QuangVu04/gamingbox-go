@@ -13,6 +13,7 @@ type UserRepository interface {
     FindByUsername(username string) (*models.User, error)
     FindBySteamID(steamID string) (*models.User, error)
     Update(user *models.User) error
+    ToggleFollow(followerID, followingID uint) (bool, error)
 }
 
 type userRepository struct {
@@ -61,4 +62,44 @@ func (r *userRepository) FindByUsername(username string) (*models.User, error) {
 
 func (r *userRepository) Update(user *models.User) error {
     return r.db.Save(user).Error
+}
+
+func (r *userRepository) ToggleFollow(followerID, followingID uint) (bool, error) {
+    var follow models.Follow
+    err := r.db.Where("follower_id = ? AND following_id = ?", followerID, followingID).First(&follow).Error
+
+    if err == nil {
+        // Đã follow -> Hủy follow
+        err = r.db.Transaction(func(tx *gorm.DB) error {
+            if err := tx.Delete(&follow).Error; err != nil {
+                return err
+            }
+            if err := tx.Model(&models.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("following_count - ?", 1)).Error; err != nil {
+                return err
+            }
+            if err := tx.Model(&models.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("follower_count - ?", 1)).Error; err != nil {
+                return err
+            }
+            return nil
+        })
+        return false, err
+    } else if err == gorm.ErrRecordNotFound {
+        // Chưa follow -> Thêm follow
+        newFollow := models.Follow{FollowerID: followerID, FollowingID: followingID}
+        err = r.db.Transaction(func(tx *gorm.DB) error {
+            if err := tx.Create(&newFollow).Error; err != nil {
+                return err
+            }
+            if err := tx.Model(&models.User{}).Where("id = ?", followerID).UpdateColumn("following_count", gorm.Expr("following_count + ?", 1)).Error; err != nil {
+                return err
+            }
+            if err := tx.Model(&models.User{}).Where("id = ?", followingID).UpdateColumn("follower_count", gorm.Expr("follower_count + ?", 1)).Error; err != nil {
+                return err
+            }
+            return nil
+        })
+        return true, err
+    }
+    
+    return false, err
 }
