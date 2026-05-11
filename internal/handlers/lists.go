@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"vault/be/internal/dto"
+	"vault/be/internal/middleware"
 	"vault/be/internal/services"
 	"vault/be/pkg/utils"
 
@@ -63,3 +64,136 @@ func (h *ListHandler) TrendingLists(c *gin.Context) {
 		"data":       lists,
 	})
 }
+
+// CreateList godoc
+// @Summary      Tạo List mới
+// @Description  Tạo danh sách game cá nhân (Cần đăng nhập)
+// @Tags         Lists
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.CreateListRequest true "Thông tin list"
+// @Success      201  {object}  dto.SuccessResponse[dto.ListDetailResponse]
+// @Router       /lists [post]
+func (h *ListHandler) CreateList(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	var req dto.CreateListRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	list, err := h.listService.CreateList(ctx, userID, req)
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusCreated, list)
+}
+
+// GetListDetail godoc
+// @Summary      Xem chi tiết List
+// @Description  Lấy thông tin và danh sách game trong một list
+// @Tags         Lists
+// @Produce      json
+// @Param        id path int true "ID của List"
+// @Success      200  {object}  dto.SuccessResponse[dto.ListDetailResponse]
+// @Router       /lists/{id} [get]
+func (h *ListHandler) GetListDetail(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	list, err := h.listService.GetListDetail(ctx, uint(id))
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, list)
+}
+
+// UpdateList godoc
+// @Summary      Cập nhật List
+// @Description  Chỉnh sửa thông tin hoặc danh sách game trong list (Chỉ chủ sở hữu)
+// @Tags         Lists
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "ID của List"
+// @Param        request body dto.UpdateListRequest true "Thông tin cập nhật"
+// @Success      200  {object}  dto.SuccessResponse[dto.ListDetailResponse]
+// @Router       /lists/{id} [put]
+func (h *ListHandler) UpdateList(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	var req dto.UpdateListRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	list, err := h.listService.UpdateList(ctx, userID, uint(id), req)
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, list)
+}
+
+// DeleteList godoc
+// @Summary      Xóa List
+// @Description  Xóa một danh sách game (Chỉ chủ sở hữu)
+// @Tags         Lists
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path int true "ID của List"
+// @Success      200  {object}  dto.SuccessResponse[string]
+// @Router       /lists/{id} [delete]
+func (h *ListHandler) DeleteList(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	if err := h.listService.DeleteList(ctx, userID, uint(id)); err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "Đã xóa danh sách")
+}
+

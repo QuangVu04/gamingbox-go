@@ -125,11 +125,6 @@ const docTemplate = `{
         },
         "/auth/me": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Lấy thông tin của người dùng đang đăng nhập",
                 "produces": [
                     "application/json"
@@ -151,7 +146,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/auth/refresh": {
@@ -357,13 +357,44 @@ const docTemplate = `{
                 }
             }
         },
-        "/games/rate": {
-            "post": {
-                "security": [
+        "/games/popular": {
+            "get": {
+                "description": "Lấy danh sách game có đánh giá cao nhất",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Games"
+                ],
+                "summary": "Danh sách Game phổ biến",
+                "parameters": [
                     {
-                        "BearerAuth": []
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Trang hiện tại",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 12,
+                        "description": "Số lượng mỗi trang",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PaginatedResponse-array_dto_GameTrendingResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/games/rate": {
+            "post": {
                 "description": "Đánh giá sao cho một game (Cần đăng nhập)",
                 "consumes": [
                     "application/json"
@@ -403,6 +434,54 @@ const docTemplate = `{
                         "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/games/search": {
+            "get": {
+                "description": "Tìm kiếm game theo tên có phân trang",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Games"
+                ],
+                "summary": "Tìm kiếm Game",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Từ khóa tìm kiếm",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Trang hiện tại",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 12,
+                        "description": "Số lượng mỗi trang",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PaginatedResponse-array_dto_GameTrendingResponse"
                         }
                     }
                 }
@@ -450,11 +529,6 @@ const docTemplate = `{
         },
         "/games/{game_id}/like": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Thích hoặc Bỏ thích một game (Cần đăng nhập)",
                 "produces": [
                     "application/json"
@@ -485,7 +559,86 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/games/{id}": {
+            "get": {
+                "description": "Lấy thông tin đầy đủ của một game dựa trên ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Games"
+                ],
+                "summary": "Lấy chi tiết Game",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của Game",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_GameDetailResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
                 }
+            }
+        },
+        "/lists": {
+            "post": {
+                "description": "Tạo danh sách game cá nhân (Cần đăng nhập)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Lists"
+                ],
+                "summary": "Tạo List mới",
+                "parameters": [
+                    {
+                        "description": "Thông tin list",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateListRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_ListDetailResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/lists/trending": {
@@ -528,13 +681,113 @@ const docTemplate = `{
                 }
             }
         },
-        "/lists/{list_id}/like": {
-            "post": {
+        "/lists/{id}": {
+            "get": {
+                "description": "Lấy thông tin và danh sách game trong một list",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Lists"
+                ],
+                "summary": "Xem chi tiết List",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của List",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_ListDetailResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Chỉnh sửa thông tin hoặc danh sách game trong list (Chỉ chủ sở hữu)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Lists"
+                ],
+                "summary": "Cập nhật List",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của List",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Thông tin cập nhật",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateListRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_ListDetailResponse"
+                        }
+                    }
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
+                ]
+            },
+            "delete": {
+                "description": "Xóa một danh sách game (Chỉ chủ sở hữu)",
+                "produces": [
+                    "application/json"
                 ],
+                "tags": [
+                    "Lists"
+                ],
+                "summary": "Xóa List",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của List",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-string"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/lists/{list_id}/like": {
+            "post": {
                 "description": "Thích hoặc Bỏ thích một list (Cần đăng nhập)",
                 "produces": [
                     "application/json"
@@ -565,16 +818,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/notifications": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/notifications": {
+            "get": {
                 "description": "Lấy danh sách thông báo của người dùng hiện tại (Cần đăng nhập)",
                 "produces": [
                     "application/json"
@@ -612,16 +865,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/notifications/read-all": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/notifications/read-all": {
+            "post": {
                 "description": "Đánh dấu tất cả thông báo của người dùng hiện tại là đã đọc",
                 "produces": [
                     "application/json"
@@ -637,16 +890,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.MessageResponse"
                         }
                     }
-                }
-            }
-        },
-        "/notifications/{id}/read": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/notifications/{id}/read": {
+            "post": {
                 "description": "Đánh dấu một thông báo cụ thể là đã đọc",
                 "produces": [
                     "application/json"
@@ -671,7 +924,51 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.MessageResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reviews": {
+            "post": {
+                "description": "Tạo một review cho game (Cần đăng nhập)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Tạo Review mới",
+                "parameters": [
+                    {
+                        "description": "Thông tin review",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_ReviewTrendingResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/reviews/trending": {
@@ -714,13 +1011,159 @@ const docTemplate = `{
                 }
             }
         },
-        "/reviews/{review_id}/like": {
-            "post": {
+        "/reviews/{id}": {
+            "put": {
+                "description": "Chỉnh sửa review đã viết (Chỉ chủ sở hữu mới có quyền)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Cập nhật Review",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của Review",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Thông tin cập nhật",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_ReviewTrendingResponse"
+                        }
+                    }
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
+                ]
+            },
+            "delete": {
+                "description": "Xóa một review (Chỉ chủ sở hữu)",
+                "produces": [
+                    "application/json"
                 ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Xóa Review",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của Review",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-string"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reviews/{id}/comments": {
+            "get": {
+                "description": "Lấy tất cả bình luận của một review",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Lấy danh sách bình luận",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của Review",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-array_dto_CommentResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Bình luận vào một review (Cần đăng nhập)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Thêm bình luận",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID của Review",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Nội dung bình luận",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CommentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_CommentResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reviews/{review_id}/like": {
+            "post": {
                 "description": "Thích hoặc Bỏ thích một review (Cần đăng nhập)",
                 "produces": [
                     "application/json"
@@ -751,16 +1194,58 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/users/diary": {
+            "get": {
+                "description": "Lấy danh sách nhật ký chơi game của người dùng",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Xem Nhật ký chơi game",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID người dùng",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Trang",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Giới hạn",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PaginatedResponse-array_dto_DiaryEntry"
+                        }
+                    }
                 }
             }
         },
         "/users/follow": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Thực hiện follow hoặc unfollow một người dùng khác (Cần đăng nhập)",
                 "consumes": [
                     "application/json"
@@ -808,16 +1293,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/users/me": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/users/me": {
+            "get": {
                 "description": "Lấy thông tin profile đầy đủ của người dùng (Cần đăng nhập)",
                 "produces": [
                     "application/json"
@@ -839,16 +1324,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/users/me/followers": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/users/me/followers": {
+            "get": {
                 "description": "Lấy danh sách những người dùng đang follow current user",
                 "produces": [
                     "application/json"
@@ -892,16 +1377,16 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
-            }
-        },
-        "/users/me/following": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/users/me/following": {
+            "get": {
                 "description": "Lấy danh sách những người dùng mà current user đang follow",
                 "produces": [
                     "application/json"
@@ -945,7 +1430,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/users/profile": {
@@ -984,6 +1474,76 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/stats": {
+            "get": {
+                "description": "Xem thống kê về game đã chơi, đánh giá trung bình...",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Lấy thống kê người dùng",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID người dùng (Nếu không có sẽ lấy me)",
+                        "name": "id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuccessResponse-dto_UserStatsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/watchlist": {
+            "get": {
+                "description": "Lấy danh sách game muốn chơi của người dùng",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Xem Watchlist (Backlog)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID người dùng",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Trang",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Giới hạn",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PaginatedResponse-array_dto_GameSummary"
                         }
                     }
                 }
@@ -1028,6 +1588,99 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/dto.UserResponse"
+                }
+            }
+        },
+        "dto.CommentRequest": {
+            "type": "object",
+            "required": [
+                "content"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CommentResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "parent_id": {
+                    "type": "integer"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.ReviewUserInfo"
+                }
+            }
+        },
+        "dto.CreateListRequest": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "game_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "thumbnail_img": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateReviewRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "game_id",
+                "recommend"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "game_id": {
+                    "type": "integer"
+                },
+                "img": {
+                    "type": "string"
+                },
+                "is_spoiler": {
+                    "type": "boolean"
+                },
+                "recommend": {
+                    "type": "string",
+                    "enum": [
+                        "recommend",
+                        "mixed",
+                        "not_recommend"
+                    ]
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -1085,6 +1738,65 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.GameDetailResponse": {
+            "type": "object",
+            "properties": {
+                "average_playtime": {
+                    "type": "number"
+                },
+                "avg_rating": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "genres": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GenreDTO"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_free": {
+                    "type": "boolean"
+                },
+                "like_count": {
+                    "type": "integer"
+                },
+                "platforms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.PlatformDTO"
+                    }
+                },
+                "price": {
+                    "type": "number"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "review_count": {
+                    "type": "integer"
+                },
+                "steam_id": {
+                    "type": "integer"
+                },
+                "studio": {
+                    "$ref": "#/definitions/dto.StudioDTO"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -1153,6 +1865,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenreDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.LikeGameResponse": {
             "type": "object",
             "properties": {
@@ -1168,6 +1891,58 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ListDetailResponse": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "$ref": "#/definitions/dto.ListAuthorInfo"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "game_count": {
+                    "type": "integer"
+                },
+                "games": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ListEntryDTO"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "like_count": {
+                    "type": "integer"
+                },
+                "thumbnail_img": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ListEntryDTO": {
+            "type": "object",
+            "properties": {
+                "game_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "poster": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -1237,6 +2012,40 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "target_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PaginatedResponse-array_dto_DiaryEntry": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DiaryEntry"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationDTO"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PaginatedResponse-array_dto_GameSummary": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.GameSummary"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationDTO"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -1340,6 +2149,17 @@ const docTemplate = `{
                 },
                 "total_records": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.PlatformDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -1488,11 +2308,41 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.StudioDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SuccessResponse-array_dto_CommentResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.CommentResponse"
+                    }
+                }
+            }
+        },
         "dto.SuccessResponse-dto_AuthResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/dto.AuthResponse"
+                }
+            }
+        },
+        "dto.SuccessResponse-dto_CommentResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.CommentResponse"
                 }
             }
         },
@@ -1504,11 +2354,27 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SuccessResponse-dto_GameDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.GameDetailResponse"
+                }
+            }
+        },
         "dto.SuccessResponse-dto_LikeGameResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/dto.LikeGameResponse"
+                }
+            }
+        },
+        "dto.SuccessResponse-dto_ListDetailResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.ListDetailResponse"
                 }
             }
         },
@@ -1520,6 +2386,14 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SuccessResponse-dto_ReviewTrendingResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.ReviewTrendingResponse"
+                }
+            }
+        },
         "dto.SuccessResponse-dto_UserProfileResponse": {
             "type": "object",
             "properties": {
@@ -1528,11 +2402,75 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SuccessResponse-dto_UserStatsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.UserStatsResponse"
+                }
+            }
+        },
         "dto.SuccessResponse-dto_VerifyCodeResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "$ref": "#/definitions/dto.VerifyCodeResponse"
+                }
+            }
+        },
+        "dto.SuccessResponse-string": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateListRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "game_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
+                "thumbnail_img": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateReviewRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "img": {
+                    "type": "string"
+                },
+                "is_spoiler": {
+                    "type": "boolean"
+                },
+                "recommend": {
+                    "type": "string",
+                    "enum": [
+                        "recommend",
+                        "mixed",
+                        "not_recommend"
+                    ]
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -1657,6 +2595,33 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UserStatsResponse": {
+            "type": "object",
+            "properties": {
+                "average_rating": {
+                    "type": "number"
+                },
+                "genre_distribution": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "rating_distribution": {
+                    "description": "1 to 5 stars",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total_played": {
+                    "type": "integer"
+                },
+                "total_reviews": {
+                    "type": "integer"
                 }
             }
         },

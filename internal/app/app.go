@@ -40,6 +40,7 @@ func New() *App {
 func (a *App) Seed() {
 	seeders.SeedAdmin(a.DB)
 	seeders.SeedRandomData(a.DB)
+	seeders.SeedGameboxData(a.DB)
 }
 
 func (a *App) Run() {
@@ -58,8 +59,8 @@ func (a *App) Run() {
 	authService := services.NewAuthService(userRepo, tokenRepo)
 	notificationService := services.NewNotificationService(notificationRepo)
 	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo, notificationService)
-	gameService := services.NewGameService(gameRepo, ratingRepo, a.DB, a.RDB)
-	reviewService := services.NewReviewService(reviewRepo, a.RDB)
+	gameService := services.NewGameService(gameRepo, ratingRepo, reviewRepo, a.DB, a.RDB)
+	reviewService := services.NewReviewService(reviewRepo, userRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
 	likeService := services.NewLikeService(likeRepo, a.RDB, notificationService, reviewRepo, listRepo)
 

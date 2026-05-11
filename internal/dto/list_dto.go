@@ -18,3 +18,38 @@ type ListTrendingResponse struct {
 	TotalLikes       int             `json:"total_likes"`
 	CreatedAt        string          `json:"created_at"`
 }
+
+type CreateListRequest struct {
+	Title        string `json:"title" binding:"required"`
+	Description  string `json:"description"`
+	ThumbnailImg string `json:"thumbnail_img"`
+	IsPublic     bool   `json:"is_public"`
+	GameIDs      []uint `json:"game_ids"`
+}
+
+type UpdateListRequest struct {
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	ThumbnailImg string `json:"thumbnail_img"`
+	IsPublic     *bool  `json:"is_public"`
+	GameIDs      []uint `json:"game_ids"`
+}
+
+type ListEntryDTO struct {
+	GameID uint   `json:"game_id"`
+	Title  string `json:"title"`
+	Poster string `json:"poster"`
+	Note   string `json:"note"`
+}
+
+type ListDetailResponse struct {
+	ID           uint           `json:"id"`
+	Title        string         `json:"title"`
+	Description  string         `json:"description"`
+	Author       ListAuthorInfo `json:"author"`
+	ThumbnailImg string         `json:"thumbnail_img"`
+	GameCount    int            `json:"game_count"`
+	LikeCount    int            `json:"like_count"`
+	CreatedAt    string         `json:"created_at"`
+	Games        []ListEntryDTO `json:"games"`
+}

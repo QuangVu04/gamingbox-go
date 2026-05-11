@@ -74,3 +74,67 @@ func ToReviewTrendingResponses(reviews []models.Review, commentCounts map[uint]i
 	}
 	return responses
 }
+
+// ToReviewCompactResponse converts a Review model to a ReviewCompactResponse DTO (no game info)
+func ToReviewCompactResponse(review *models.Review, commentCount int) *dto.ReviewCompactResponse {
+	if review == nil {
+		return nil
+	}
+
+	return &dto.ReviewCompactResponse{
+		ReviewID: review.ID,
+		User: dto.ReviewUserInfo{
+			ID:       review.User.ID,
+			Username: review.User.Username,
+			Avatar:   review.User.AvatarURL,
+		},
+		Content:      review.Content,
+		LikeCount:    review.LikeCount,
+		CommentCount: commentCount,
+		IsSpoiler:    review.IsSpoiler,
+		CreatedAt:    review.CreatedAt.Format("2006-01-02"),
+	}
+}
+
+// ToReviewCompactResponses converts multiple Review models to ReviewCompactResponse DTOs
+func ToReviewCompactResponses(reviews []models.Review, commentCounts map[uint]int) []dto.ReviewCompactResponse {
+	responses := make([]dto.ReviewCompactResponse, 0, len(reviews))
+	for i := range reviews {
+		count := commentCounts[reviews[i].ID]
+		resp := ToReviewCompactResponse(&reviews[i], count)
+		if resp != nil {
+			responses = append(responses, *resp)
+		}
+	}
+	return responses
+}
+
+func ToCommentResponse(comment *models.Comment, user *models.User) *dto.CommentResponse {
+	if comment == nil {
+		return nil
+	}
+
+	return &dto.CommentResponse{
+		ID: comment.ID,
+		User: dto.ReviewUserInfo{
+			ID:       user.ID,
+			Username: user.Username,
+			Avatar:   user.AvatarURL,
+		},
+		Content:   comment.Content,
+		ParentID:  comment.ParentID,
+		CreatedAt: comment.CreatedAt.Format("2006-01-02 15:04:05"),
+	}
+}
+
+func ToCommentResponses(comments []models.Comment, users map[uint]models.User) []dto.CommentResponse {
+	responses := make([]dto.CommentResponse, 0, len(comments))
+	for _, c := range comments {
+		user := users[c.UserID]
+		resp := ToCommentResponse(&c, &user)
+		if resp != nil {
+			responses = append(responses, *resp)
+		}
+	}
+	return responses
+}

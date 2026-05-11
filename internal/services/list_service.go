@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"math"
+	"vault/be/internal/models"
 
 	"vault/be/internal/dto"
 	"vault/be/internal/dto/mapper"
@@ -15,6 +16,10 @@ import (
 
 type ListService interface {
 	GetTrendingLists(ctx context.Context, page, limit int) ([]dto.ListTrendingResponse, *dto.PaginationDTO, error)
+	CreateList(ctx context.Context, userID uint, req dto.CreateListRequest) (*dto.ListDetailResponse, error)
+	UpdateList(ctx context.Context, userID, listID uint, req dto.UpdateListRequest) (*dto.ListDetailResponse, error)
+	DeleteList(ctx context.Context, userID, listID uint) error
+	GetListDetail(ctx context.Context, listID uint) (*dto.ListDetailResponse, error)
 }
 
 type listService struct {
@@ -87,4 +92,95 @@ func (s *listService) GetTrendingLists(ctx context.Context, page, limit int) ([]
 	}
 
 	return responses, pagination, nil
+}
+
+func (s *listService) CreateList(ctx context.Context, userID uint, req dto.CreateListRequest) (*dto.ListDetailResponse, error) {
+	entries := make([]models.ListEntry, 0, len(req.GameIDs))
+	for i, gameID := range req.GameIDs {
+		entries = append(entries, models.ListEntry{
+			GameID:   gameID,
+			Position: i + 1,
+		})
+	}
+
+	list := &models.List{
+		UserID:       userID,
+		Title:        req.Title,
+		Description:  req.Description,
+		ThumbnailImg: req.ThumbnailImg,
+		IsPublic:     req.IsPublic,
+		GameCount:    len(req.GameIDs),
+		Entries:      entries,
+	}
+
+	if err := s.listRepo.Create(list); err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể tạo danh sách")
+	}
+
+	return s.GetListDetail(ctx, list.ID)
+}
+
+func (s *listService) UpdateList(ctx context.Context, userID, listID uint, req dto.UpdateListRequest) (*dto.ListDetailResponse, error) {
+	list, err := s.listRepo.FindByID(listID)
+	if err != nil {
+		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
+	}
+
+	if list.UserID != userID {
+		return nil, dto.NewServiceError("FORBIDDEN", "không có quyền chỉnh sửa")
+	}
+
+	if req.Title != "" {
+		list.Title = req.Title
+	}
+	if req.Description != "" {
+		list.Description = req.Description
+	}
+	if req.ThumbnailImg != "" {
+		list.ThumbnailImg = req.ThumbnailImg
+	}
+	if req.IsPublic != nil {
+		list.IsPublic = *req.IsPublic
+	}
+
+	if len(req.GameIDs) > 0 {
+		entries := make([]models.ListEntry, 0, len(req.GameIDs))
+		for i, gameID := range req.GameIDs {
+			entries = append(entries, models.ListEntry{
+				ListID:   listID,
+				GameID:   gameID,
+				Position: i + 1,
+			})
+		}
+		list.Entries = entries
+		list.GameCount = len(req.GameIDs)
+	}
+
+	if err := s.listRepo.Update(list); err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể cập nhật danh sách")
+	}
+
+	return s.GetListDetail(ctx, listID)
+}
+
+func (s *listService) DeleteList(ctx context.Context, userID, listID uint) error {
+	list, err := s.listRepo.FindByID(listID)
+	if err != nil {
+		return dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
+	}
+
+	if list.UserID != userID {
+		return dto.NewServiceError("FORBIDDEN", "không có quyền xóa")
+	}
+
+	return s.listRepo.Delete(listID)
+}
+
+func (s *listService) GetListDetail(ctx context.Context, listID uint) (*dto.ListDetailResponse, error) {
+	list, err := s.listRepo.FindDetailByID(listID)
+	if err != nil {
+		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
+	}
+
+	return mapper.ToListDetailResponse(list), nil
 }

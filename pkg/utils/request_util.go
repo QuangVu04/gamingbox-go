@@ -57,3 +57,8 @@ func GetQueryBool(c *gin.Context, key string, defaultValue bool) bool {
 
 	return valueStr == "true" || valueStr == "1" || valueStr == "yes"
 }
+
+// ParseUint parses a string into a uint64
+func ParseUint(s string) (uint64, error) {
+	return strconv.ParseUint(s, 10, 64)
+}

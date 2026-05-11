@@ -7,6 +7,8 @@ import (
 
 type GameLogRepository interface {
 	GetByUserID(userID uint, limit int) ([]models.GameLog, error)
+	LogGame(log *models.GameLog) error
+	RemoveLog(userID, gameID uint) error
 }
 
 type gameLogRepository struct {
@@ -24,3 +26,11 @@ func (r *gameLogRepository) GetByUserID(userID uint, limit int) ([]models.GameLo
 		Order("logged_at desc").Limit(limit).Find(&logs).Error
 	return logs, err
 }
+
+func (r *gameLogRepository) LogGame(log *models.GameLog) error {
+	return r.db.Save(log).Error
+}
+
+func (r *gameLogRepository) RemoveLog(userID, gameID uint) error {
+	return r.db.Where("user_id = ? AND game_id = ?", userID, gameID).Delete(&models.GameLog{}).Error
+}

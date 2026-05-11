@@ -36,19 +36,6 @@ type FollowResponse struct {
 	IsFollowing bool `json:"is_following"`
 }
 
-//user backlog game
-type GameSummary struct {
-	ID          uint      `json:"id"`
-	SteamID     int       `json:"steam_id,omitempty"`
-	Title       string    `json:"title"`
-	Poster      string    `json:"poster"`
-	ReleaseDate time.Time `json:"release_date,omitempty"`
-	Price       float64   `json:"price,omitempty"`
-	IsFree      bool      `json:"is_free"`
-	AvgRating   float64   `json:"avg_rating"`
-	ReviewCount int       `json:"review_count"`
-}
-
 //review summary for user profile
 type ReviewSummary struct {
 	ID           uint        `json:"id"`
@@ -79,17 +66,12 @@ type ActivitySummary struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-
-func firstPoster(game *models.Game) string {
-	if len(game.Images) == 0 {
-		return ""
-	}
-
-	for _, img := range game.Images {
-		if img.ImgType == "header" {
-			return img.OgURL
-		}
-	}
-
-	return game.Images[0].OgURL
+type UserStatsResponse struct {
+	TotalPlayed     int            `json:"total_played"`
+	TotalReviews    int            `json:"total_reviews"`
+	AverageRating   float64        `json:"average_rating"`
+	GenreDistribution map[string]int `json:"genre_distribution"`
+	RatingDistribution map[int]int    `json:"rating_distribution"` // 1 to 5 stars
 }
+
+

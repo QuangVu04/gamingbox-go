@@ -9,6 +9,7 @@ import (
 
 type RatingRepository interface {
 	GetAverageRatingByUserID(userID uint) (float64, error)
+	GetTotalRatedByUserID(userID uint) (int64, error)
 	// UpsertRating saves or updates a rating for a user on a game
 	UpsertRating(rating *models.Rating) error
 	// FindByUserAndGame retrieves a specific rating if exists
@@ -33,6 +34,12 @@ func (r *ratingRepository) GetAverageRatingByUserID(userID uint) (float64, error
 		Where("user_id = ?", userID).
 		Select("COALESCE(AVG(rating), 0)").Scan(&average).Error
 	return average, err
+}
+
+func (r *ratingRepository) GetTotalRatedByUserID(userID uint) (int64, error) {
+	var total int64
+	err := r.db.Model(&models.Rating{}).Where("user_id = ?", userID).Count(&total).Error
+	return total, err
 }
 
 func (r *ratingRepository) UpsertRating(rating *models.Rating) error {

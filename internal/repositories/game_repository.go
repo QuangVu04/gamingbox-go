@@ -9,6 +9,11 @@ import (
 
 type GameRepository interface {
 	GetTrendingGames(page, limit int) ([]models.GameTrending, int64, error)
+	GetByID(id uint) (*models.Game, error)
+	Search(query string, page, limit int) ([]models.Game, int64, error)
+	GetPopular(page, limit int) ([]models.Game, int64, error)
+	GetByStudio(studioID uint, excludeGameID uint, limit int) ([]models.Game, error)
+	GetByGenres(genreIDs []uint, excludeGameID uint, limit int) ([]models.Game, error)
 }
 
 type gameRepository struct {
@@ -108,4 +113,95 @@ func (r *gameRepository) GetTrendingGames(page, limit int) ([]models.GameTrendin
 	}
 
 	return trendingGames, totalCount, nil
+}
+
+func (r *gameRepository) GetByID(id uint) (*models.Game, error) {
+	var game models.Game
+	err := r.db.Preload("Studio").
+		Preload("Genres").
+		Preload("Platforms").
+		Preload("Images").
+		First(&game, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &game, nil
+}
+
+func (r *gameRepository) Search(query string, page, limit int) ([]models.Game, int64, error) {
+	var games []models.Game
+	var total int64
+	offset := (page - 1) * limit
+
+	db := r.db.Model(&models.Game{}).
+		Preload("Studio").
+		Preload("Genres").
+		Preload("Platforms").
+		Preload("Images", "img_type = ?", "header").
+		Where("title LIKE ?", "%"+query+"%")
+
+	err := db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = db.Limit(limit).Offset(offset).Find(&games).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return games, total, nil
+}
+
+func (r *gameRepository) GetPopular(page, limit int) ([]models.Game, int64, error) {
+	var games []models.Game
+	var total int64
+	offset := (page - 1) * limit
+
+	db := r.db.Model(&models.Game{}).
+		Preload("Studio").
+		Preload("Genres").
+		Preload("Platforms").
+		Preload("Images", "img_type = ?", "header")
+
+	err := db.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	err = db.Order("avg_rating DESC, review_count DESC").
+		Limit(limit).Offset(offset).Find(&games).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return games, total, nil
+}
+
+func (r *gameRepository) GetByStudio(studioID uint, excludeGameID uint, limit int) ([]models.Game, error) {
+	var games []models.Game
+	err := r.db.Model(&models.Game{}).
+		Preload("Studio").
+		Preload("Images", "img_type = ?", "header").
+		Where("studio_id = ? AND id != ?", studioID, excludeGameID).
+		Limit(limit).
+		Find(&games).Error
+	return games, err
+}
+
+func (r *gameRepository) GetByGenres(genreIDs []uint, excludeGameID uint, limit int) ([]models.Game, error) {
+	var games []models.Game
+	if len(genreIDs) == 0 {
+		return games, nil
+	}
+
+	err := r.db.Model(&models.Game{}).
+		Joins("JOIN game_genres ON game_genres.game_id = games.id").
+		Preload("Studio").
+		Preload("Images", "img_type = ?", "header").
+		Where("game_genres.genre_id IN ? AND games.id != ?", genreIDs, excludeGameID).
+		Group("games.id").
+		Limit(limit).
+		Find(&games).Error
+	return games, err
 }

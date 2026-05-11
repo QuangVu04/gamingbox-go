@@ -2,6 +2,7 @@ package mapper
 
 import (
 	"vault/be/internal/dto"
+	"vault/be/internal/models"
 	"vault/be/internal/repositories"
 )
 
@@ -65,4 +66,42 @@ func ToTrendingListResponses(listsData []repositories.ListTrendingData) []dto.Li
 		}
 	}
 	return responses
+}
+
+func ToListDetailResponse(list *models.List) *dto.ListDetailResponse {
+	if list == nil {
+		return nil
+	}
+
+	games := make([]dto.ListEntryDTO, 0, len(list.Entries))
+	for _, entry := range list.Entries {
+		poster := ""
+		for _, img := range entry.Game.Images {
+			if img.ImgType == "header" {
+				poster = img.OgURL
+				break
+			}
+		}
+		games = append(games, dto.ListEntryDTO{
+			GameID: entry.GameID,
+			Title:  entry.Game.Title,
+			Poster: poster,
+			Note:   entry.GhiChu,
+		})
+	}
+
+	return &dto.ListDetailResponse{
+		ID:          list.ID,
+		Title:       list.Title,
+		Description: list.Description,
+		Author: dto.ListAuthorInfo{
+			Username: list.User.Username,
+			Avatar:   list.User.AvatarURL,
+		},
+		ThumbnailImg: list.ThumbnailImg,
+		GameCount:    list.GameCount,
+		LikeCount:    list.LikeCount,
+		CreatedAt:    list.CreatedAt.Format("2006-01-02 15:04:05"),
+		Games:        games,
+	}
 }

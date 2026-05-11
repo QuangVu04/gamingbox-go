@@ -49,6 +49,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	users := v1.Group("/users")
 	{
 		users.GET("/profile", userHandler.GetProfile)
+		users.GET("/stats", userHandler.GetStats)
+		users.GET("/diary", userHandler.GetDiary)
+		users.GET("/watchlist", userHandler.GetWatchlist)
 
 		usersProtected := users.Group("")
 		usersProtected.Use(middleware.Authenticate())
@@ -63,6 +66,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	games := v1.Group("/games")
 	{
 		games.GET("/trending", gameHandler.TrendingGames)
+		games.GET("/popular", gameHandler.PopularGames)
+		games.GET("/search", gameHandler.SearchGames)
+		games.GET("/:id", gameHandler.GetGameDetail)
 
 		gamesProtected := games.Group("")
 		gamesProtected.Use(middleware.Authenticate())
@@ -74,19 +80,39 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	reviews := v1.Group("/reviews")
 	{
 		reviews.GET("/trending", reviewHandler.TrendingReviews)
+		reviews.GET("/:id", reviewHandler.GetReviewDetail)
+		reviews.GET("/:id/comments", reviewHandler.GetComments)
+
+		reviewsProtected := reviews.Group("")
+		reviewsProtected.Use(middleware.Authenticate())
+		{
+			reviewsProtected.POST("", reviewHandler.CreateReview)
+			reviewsProtected.PUT("/:id", reviewHandler.UpdateReview)
+			reviewsProtected.DELETE("/:id", reviewHandler.DeleteReview)
+			reviewsProtected.POST("/:id/comments", reviewHandler.AddComment)
+		}
 	}
 
 	lists := v1.Group("/lists")
 	{
 		lists.GET("/trending", listHandler.TrendingLists)
+		lists.GET("/:id", listHandler.GetListDetail)
+
+		listsProtected := lists.Group("")
+		listsProtected.Use(middleware.Authenticate())
+		{
+			listsProtected.POST("", listHandler.CreateList)
+			listsProtected.PUT("/:id", listHandler.UpdateList)
+			listsProtected.DELETE("/:id", listHandler.DeleteList)
+		}
 	}
 
 	likesGroup := v1.Group("")
 	likesGroup.Use(middleware.Authenticate())
 	{
-		likesGroup.POST("/games/:game_id/like", likeHandler.LikeGame)
-		likesGroup.POST("/reviews/:review_id/like", likeHandler.LikeReview)
-		likesGroup.POST("/lists/:list_id/like", likeHandler.LikeList)
+		likesGroup.POST("/games/:id/like", likeHandler.LikeGame)
+		likesGroup.POST("/reviews/:id/like", likeHandler.LikeReview)
+		likesGroup.POST("/lists/:id/like", likeHandler.LikeList)
 	}
 
 	notifications := v1.Group("/notifications")

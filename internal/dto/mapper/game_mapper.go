@@ -80,3 +80,90 @@ func ToGameTrendingResponses(games []models.GameTrending) []dto.GameTrendingResp
 	}
 	return responses
 }
+
+func ToGameDetailResponse(game *models.Game) *dto.GameDetailResponse {
+	if game == nil {
+		return nil
+	}
+
+	genres := make([]dto.GenreDTO, 0, len(game.Genres))
+	for _, g := range game.Genres {
+		genres = append(genres, dto.GenreDTO{ID: g.ID, Name: g.Name})
+	}
+
+	platforms := make([]dto.PlatformDTO, 0, len(game.Platforms))
+	for _, p := range game.Platforms {
+		platforms = append(platforms, dto.PlatformDTO{ID: p.ID, Name: p.Name})
+	}
+
+	images := make([]string, 0, len(game.Images))
+	for _, img := range game.Images {
+		images = append(images, img.OgURL)
+	}
+
+	var studio *dto.StudioDTO
+	if game.Studio.ID > 0 {
+		studio = &dto.StudioDTO{
+			ID:   game.Studio.ID,
+			Name: game.Studio.Name,
+		}
+	}
+
+	return &dto.GameDetailResponse{
+		ID:              game.ID,
+		SteamID:         game.SteamID,
+		Title:           game.Title,
+		Description:     game.Description,
+		ReleaseDate:     game.ReleaseDate,
+		Price:           game.Price,
+		IsFree:          game.IsFree,
+		AvgRating:       game.AvgRating,
+		ReviewCount:     game.ReviewCount,
+		LikeCount:       game.LikeCount,
+		AveragePlaytime: game.AveragePlaytime,
+		Studio:          studio,
+		Genres:          genres,
+		Platforms:       platforms,
+		Images:          images,
+	}
+}
+
+func ToSimpleGameResponse(game *models.Game) *dto.GameTrendingResponse {
+	if game == nil {
+		return nil
+	}
+
+	thumbnail := ""
+	for _, img := range game.Images {
+		if img.ImgType == "header" {
+			thumbnail = img.OgURL
+			break
+		}
+	}
+
+	studios := make([]string, 0)
+	if game.Studio.ID > 0 {
+		studios = append(studios, game.Studio.Name)
+	}
+
+	return &dto.GameTrendingResponse{
+		GameID:       game.ID,
+		Title:        game.Title,
+		Thumbnail:    thumbnail,
+		AvgRating:    game.AvgRating,
+		TotalReviews: game.ReviewCount,
+		ReleaseDate:  game.ReleaseDate,
+		Studios:      studios,
+	}
+}
+
+func ToSimpleGameResponses(games []models.Game) []dto.GameTrendingResponse {
+	responses := make([]dto.GameTrendingResponse, 0, len(games))
+	for i := range games {
+		resp := ToSimpleGameResponse(&games[i])
+		if resp != nil {
+			responses = append(responses, *resp)
+		}
+	}
+	return responses
+}

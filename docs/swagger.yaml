@@ -26,6 +26,68 @@ definitions:
       user:
         $ref: '#/definitions/dto.UserResponse'
     type: object
+  dto.CommentRequest:
+    properties:
+      content:
+        type: string
+      parent_id:
+        type: integer
+    required:
+    - content
+    type: object
+  dto.CommentResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      parent_id:
+        type: integer
+      user:
+        $ref: '#/definitions/dto.ReviewUserInfo'
+    type: object
+  dto.CreateListRequest:
+    properties:
+      description:
+        type: string
+      game_ids:
+        items:
+          type: integer
+        type: array
+      is_public:
+        type: boolean
+      thumbnail_img:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  dto.CreateReviewRequest:
+    properties:
+      content:
+        type: string
+      game_id:
+        type: integer
+      img:
+        type: string
+      is_spoiler:
+        type: boolean
+      recommend:
+        enum:
+        - recommend
+        - mixed
+        - not_recommend
+        type: string
+      title:
+        type: string
+    required:
+    - content
+    - game_id
+    - recommend
+    type: object
   dto.DiaryEntry:
     properties:
       game:
@@ -62,6 +124,45 @@ definitions:
         type: string
     required:
     - email
+    type: object
+  dto.GameDetailResponse:
+    properties:
+      average_playtime:
+        type: number
+      avg_rating:
+        type: number
+      description:
+        type: string
+      genres:
+        items:
+          $ref: '#/definitions/dto.GenreDTO'
+        type: array
+      id:
+        type: integer
+      images:
+        items:
+          type: string
+        type: array
+      is_free:
+        type: boolean
+      like_count:
+        type: integer
+      platforms:
+        items:
+          $ref: '#/definitions/dto.PlatformDTO'
+        type: array
+      price:
+        type: number
+      release_date:
+        type: string
+      review_count:
+        type: integer
+      steam_id:
+        type: integer
+      studio:
+        $ref: '#/definitions/dto.StudioDTO'
+      title:
+        type: string
     type: object
   dto.GameSummary:
     properties:
@@ -105,6 +206,13 @@ definitions:
       trending_score:
         type: integer
     type: object
+  dto.GenreDTO:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   dto.LikeGameResponse:
     properties:
       is_liked:
@@ -115,6 +223,40 @@ definitions:
       avatar:
         type: string
       username:
+        type: string
+    type: object
+  dto.ListDetailResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.ListAuthorInfo'
+      created_at:
+        type: string
+      description:
+        type: string
+      game_count:
+        type: integer
+      games:
+        items:
+          $ref: '#/definitions/dto.ListEntryDTO'
+        type: array
+      id:
+        type: integer
+      like_count:
+        type: integer
+      thumbnail_img:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.ListEntryDTO:
+    properties:
+      game_id:
+        type: integer
+      note:
+        type: string
+      poster:
+        type: string
+      title:
         type: string
     type: object
   dto.ListTrendingResponse:
@@ -160,6 +302,28 @@ definitions:
       target_id:
         type: integer
       target_type:
+        type: string
+    type: object
+  dto.PaginatedResponse-array_dto_DiaryEntry:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.DiaryEntry'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
+        type: string
+    type: object
+  dto.PaginatedResponse-array_dto_GameSummary:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.GameSummary'
+        type: array
+      pagination:
+        $ref: '#/definitions/dto.PaginationDTO'
+      status:
         type: string
     type: object
   dto.PaginatedResponse-array_dto_GameTrendingResponse:
@@ -227,6 +391,13 @@ definitions:
         type: integer
       total_records:
         type: integer
+    type: object
+  dto.PlatformDTO:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
     type: object
   dto.RateGameRequest:
     properties:
@@ -324,35 +495,111 @@ definitions:
       username:
         type: string
     type: object
+  dto.StudioDTO:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  dto.SuccessResponse-array_dto_CommentResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.CommentResponse'
+        type: array
+    type: object
   dto.SuccessResponse-dto_AuthResponse:
     properties:
       data:
         $ref: '#/definitions/dto.AuthResponse'
+    type: object
+  dto.SuccessResponse-dto_CommentResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.CommentResponse'
     type: object
   dto.SuccessResponse-dto_FollowResponse:
     properties:
       data:
         $ref: '#/definitions/dto.FollowResponse'
     type: object
+  dto.SuccessResponse-dto_GameDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.GameDetailResponse'
+    type: object
   dto.SuccessResponse-dto_LikeGameResponse:
     properties:
       data:
         $ref: '#/definitions/dto.LikeGameResponse'
+    type: object
+  dto.SuccessResponse-dto_ListDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ListDetailResponse'
     type: object
   dto.SuccessResponse-dto_RateGameResponse:
     properties:
       data:
         $ref: '#/definitions/dto.RateGameResponse'
     type: object
+  dto.SuccessResponse-dto_ReviewTrendingResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ReviewTrendingResponse'
+    type: object
   dto.SuccessResponse-dto_UserProfileResponse:
     properties:
       data:
         $ref: '#/definitions/dto.UserProfileResponse'
     type: object
+  dto.SuccessResponse-dto_UserStatsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UserStatsResponse'
+    type: object
   dto.SuccessResponse-dto_VerifyCodeResponse:
     properties:
       data:
         $ref: '#/definitions/dto.VerifyCodeResponse'
+    type: object
+  dto.SuccessResponse-string:
+    properties:
+      data:
+        type: string
+    type: object
+  dto.UpdateListRequest:
+    properties:
+      description:
+        type: string
+      game_ids:
+        items:
+          type: integer
+        type: array
+      is_public:
+        type: boolean
+      thumbnail_img:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.UpdateReviewRequest:
+    properties:
+      content:
+        type: string
+      img:
+        type: string
+      is_spoiler:
+        type: boolean
+      recommend:
+        enum:
+        - recommend
+        - mixed
+        - not_recommend
+        type: string
+      title:
+        type: string
     type: object
   dto.UserProfileResponse:
     properties:
@@ -435,6 +682,24 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  dto.UserStatsResponse:
+    properties:
+      average_rating:
+        type: number
+      genre_distribution:
+        additionalProperties:
+          type: integer
+        type: object
+      rating_distribution:
+        additionalProperties:
+          type: integer
+        description: 1 to 5 stars
+        type: object
+      total_played:
+        type: integer
+      total_reviews:
+        type: integer
     type: object
   dto.UserSummary:
     properties:
@@ -764,6 +1029,53 @@ paths:
       summary: Thích hoặc Bỏ thích Game
       tags:
       - Likes
+  /games/{id}:
+    get:
+      description: Lấy thông tin đầy đủ của một game dựa trên ID
+      parameters:
+      - description: ID của Game
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_GameDetailResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Lấy chi tiết Game
+      tags:
+      - Games
+  /games/popular:
+    get:
+      description: Lấy danh sách game có đánh giá cao nhất
+      parameters:
+      - default: 1
+        description: Trang hiện tại
+        in: query
+        name: page
+        type: integer
+      - default: 12
+        description: Số lượng mỗi trang
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_GameTrendingResponse'
+      summary: Danh sách Game phổ biến
+      tags:
+      - Games
   /games/rate:
     post:
       consumes:
@@ -796,6 +1108,35 @@ paths:
       summary: Đánh giá Game
       tags:
       - Games
+  /games/search:
+    get:
+      description: Tìm kiếm game theo tên có phân trang
+      parameters:
+      - description: Từ khóa tìm kiếm
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 1
+        description: Trang hiện tại
+        in: query
+        name: page
+        type: integer
+      - default: 12
+        description: Số lượng mỗi trang
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_GameTrendingResponse'
+      summary: Tìm kiếm Game
+      tags:
+      - Games
   /games/trending:
     get:
       description: Lấy danh sách game phổ biến có phân trang
@@ -822,6 +1163,98 @@ paths:
       summary: Lấy danh sách game thịnh hành
       tags:
       - Games
+  /lists:
+    post:
+      consumes:
+      - application/json
+      description: Tạo danh sách game cá nhân (Cần đăng nhập)
+      parameters:
+      - description: Thông tin list
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateListRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_ListDetailResponse'
+      security:
+      - BearerAuth: []
+      summary: Tạo List mới
+      tags:
+      - Lists
+  /lists/{id}:
+    delete:
+      description: Xóa một danh sách game (Chỉ chủ sở hữu)
+      parameters:
+      - description: ID của List
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-string'
+      security:
+      - BearerAuth: []
+      summary: Xóa List
+      tags:
+      - Lists
+    get:
+      description: Lấy thông tin và danh sách game trong một list
+      parameters:
+      - description: ID của List
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_ListDetailResponse'
+      summary: Xem chi tiết List
+      tags:
+      - Lists
+    put:
+      consumes:
+      - application/json
+      description: Chỉnh sửa thông tin hoặc danh sách game trong list (Chỉ chủ sở
+        hữu)
+      parameters:
+      - description: ID của List
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Thông tin cập nhật
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateListRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_ListDetailResponse'
+      security:
+      - BearerAuth: []
+      summary: Cập nhật List
+      tags:
+      - Lists
   /lists/{list_id}/like:
     post:
       description: Thích hoặc Bỏ thích một list (Cần đăng nhập)
@@ -939,6 +1372,126 @@ paths:
       summary: Đánh dấu đã đọc tất cả thông báo
       tags:
       - Notifications
+  /reviews:
+    post:
+      consumes:
+      - application/json
+      description: Tạo một review cho game (Cần đăng nhập)
+      parameters:
+      - description: Thông tin review
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_ReviewTrendingResponse'
+      security:
+      - BearerAuth: []
+      summary: Tạo Review mới
+      tags:
+      - Reviews
+  /reviews/{id}:
+    delete:
+      description: Xóa một review (Chỉ chủ sở hữu)
+      parameters:
+      - description: ID của Review
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-string'
+      security:
+      - BearerAuth: []
+      summary: Xóa Review
+      tags:
+      - Reviews
+    put:
+      consumes:
+      - application/json
+      description: Chỉnh sửa review đã viết (Chỉ chủ sở hữu mới có quyền)
+      parameters:
+      - description: ID của Review
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Thông tin cập nhật
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_ReviewTrendingResponse'
+      security:
+      - BearerAuth: []
+      summary: Cập nhật Review
+      tags:
+      - Reviews
+  /reviews/{id}/comments:
+    get:
+      description: Lấy tất cả bình luận của một review
+      parameters:
+      - description: ID của Review
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-array_dto_CommentResponse'
+      summary: Lấy danh sách bình luận
+      tags:
+      - Reviews
+    post:
+      consumes:
+      - application/json
+      description: Bình luận vào một review (Cần đăng nhập)
+      parameters:
+      - description: ID của Review
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Nội dung bình luận
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_CommentResponse'
+      security:
+      - BearerAuth: []
+      summary: Thêm bình luận
+      tags:
+      - Reviews
   /reviews/{review_id}/like:
     post:
       description: Thích hoặc Bỏ thích một review (Cần đăng nhập)
@@ -990,6 +1543,34 @@ paths:
       summary: Lấy danh sách Review thịnh hành
       tags:
       - Reviews
+  /users/diary:
+    get:
+      description: Lấy danh sách nhật ký chơi game của người dùng
+      parameters:
+      - description: ID người dùng
+        in: query
+        name: id
+        type: integer
+      - default: 1
+        description: Trang
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Giới hạn
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_DiaryEntry'
+      summary: Xem Nhật ký chơi game
+      tags:
+      - Users
   /users/follow:
     post:
       consumes:
@@ -1138,6 +1719,52 @@ paths:
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       summary: Xem Profile người dùng khác
+      tags:
+      - Users
+  /users/stats:
+    get:
+      description: Xem thống kê về game đã chơi, đánh giá trung bình...
+      parameters:
+      - description: ID người dùng (Nếu không có sẽ lấy me)
+        in: query
+        name: id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SuccessResponse-dto_UserStatsResponse'
+      summary: Lấy thống kê người dùng
+      tags:
+      - Users
+  /users/watchlist:
+    get:
+      description: Lấy danh sách game muốn chơi của người dùng
+      parameters:
+      - description: ID người dùng
+        in: query
+        name: id
+        type: integer
+      - default: 1
+        description: Trang
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Giới hạn
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PaginatedResponse-array_dto_GameSummary'
+      summary: Xem Watchlist (Backlog)
       tags:
       - Users
 securityDefinitions:

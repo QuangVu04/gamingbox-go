@@ -24,7 +24,6 @@ func main() {
 
     if *migrate {
         database.RunMigrations(application.DB)
-        return
     }
 
     if *seed {

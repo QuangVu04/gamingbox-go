@@ -92,3 +92,41 @@ func handleLikeError(c *gin.Context, err error) {
 
 	utils.InternalError(c)
 }
+
+func handleListError(c *gin.Context, err error) {
+	if serviceErr, ok := err.(*dto.ServiceError); ok {
+		switch serviceErr.Code {
+		case "NOT_FOUND":
+			utils.NotFound(c, serviceErr.Message)
+		case "FORBIDDEN":
+			utils.Forbidden(c, serviceErr.Message)
+		case "VALIDATION_ERROR":
+			utils.ValidationError(c, serviceErr.Message)
+		case "DATABASE_ERROR", "SERVER_ERROR":
+			utils.InternalError(c)
+		default:
+			utils.InternalError(c)
+		}
+		return
+	}
+	utils.InternalError(c)
+}
+
+func handleReviewError(c *gin.Context, err error) {
+	if serviceErr, ok := err.(*dto.ServiceError); ok {
+		switch serviceErr.Code {
+		case "NOT_FOUND":
+			utils.NotFound(c, serviceErr.Message)
+		case "FORBIDDEN":
+			utils.Forbidden(c, serviceErr.Message)
+		case "VALIDATION_ERROR":
+			utils.ValidationError(c, serviceErr.Message)
+		case "DATABASE_ERROR", "SERVER_ERROR":
+			utils.InternalError(c)
+		default:
+			utils.InternalError(c)
+		}
+		return
+	}
+	utils.InternalError(c)
+}

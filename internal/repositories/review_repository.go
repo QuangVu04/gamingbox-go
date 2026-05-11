@@ -13,6 +13,12 @@ type ReviewRepository interface {
 	GetCommentCounts(reviewIDs []uint) (map[uint]int, error)
 	GetTrendingReviews(page, limit int) ([]models.Review, int64, error)
 	FindByID(id uint) (*models.Review, error)
+	Create(review *models.Review) error
+	Update(review *models.Review) error
+	Delete(id uint) error
+	GetComments(reviewID uint) ([]models.Comment, error)
+	AddComment(comment *models.Comment) error
+	GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error)
 }
 
 type reviewRepository struct {
@@ -99,4 +105,41 @@ func (r *reviewRepository) FindByID(id uint) (*models.Review, error) {
 		return nil, err
 	}
 	return &review, nil
+}
+
+func (r *reviewRepository) Create(review *models.Review) error {
+	return r.db.Create(review).Error
+}
+
+func (r *reviewRepository) Update(review *models.Review) error {
+	return r.db.Save(review).Error
+}
+
+func (r *reviewRepository) Delete(id uint) error {
+	return r.db.Delete(&models.Review{}, id).Error
+}
+
+func (r *reviewRepository) GetComments(reviewID uint) ([]models.Comment, error) {
+	var comments []models.Comment
+	err := r.db.Where("review_id = ?", reviewID).Order("created_at asc").Find(&comments).Error
+	return comments, err
+}
+
+func (r *reviewRepository) AddComment(comment *models.Comment) error {
+	return r.db.Create(comment).Error
+}
+
+func (r *reviewRepository) GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error) {
+	var reviews []models.Review
+	db := r.db.Preload("User").
+		Where("target_id = ? AND target_type = ?", gameID, "game")
+
+	if orderBy == "popular" {
+		db = db.Order("like_count DESC")
+	} else {
+		db = db.Order("created_at DESC")
+	}
+
+	err := db.Limit(limit).Find(&reviews).Error
+	return reviews, err
 }

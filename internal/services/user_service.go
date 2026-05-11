@@ -15,6 +15,9 @@ type UserService interface {
 	ToggleFollow(followerID, followingID uint) (*dto.FollowResponse, error)
 	GetFollowing(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error)
 	GetFollowers(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error)
+	GetUserStats(userID uint) (*dto.UserStatsResponse, error)
+	GetDiary(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error)
+	GetWatchlist(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error)
 }
 
 type userService struct {
@@ -339,4 +342,49 @@ func (s *userService) fetchRecentActivity(userID uint, limit int) ([]dto.Activit
 	}
 
 	return result, nil
+}
+
+func (s *userService) GetUserStats(userID uint) (*dto.UserStatsResponse, error) {
+	totalPlayed, _ := s.ratingRepo.GetTotalRatedByUserID(userID)
+	avgRating, _ := s.fetchAverageRating(userID)
+	
+	return &dto.UserStatsResponse{
+		TotalPlayed:     int(totalPlayed),
+		TotalReviews:    0, 
+		AverageRating:   avgRating,
+		GenreDistribution: make(map[string]int),
+		RatingDistribution: make(map[int]int),
+	}, nil
+}
+
+func (s *userService) GetDiary(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 20 }
+	
+	logs, err := s.gameLogRepo.GetByUserID(userID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	diary := make([]dto.DiaryEntry, 0, len(logs))
+	for _, log := range logs {
+		diary = append(diary, mapper.ToDiaryEntry(&log))
+	}
+
+	return &dto.PaginatedResponse[[]dto.DiaryEntry]{
+		Status: "success",
+		Data:   diary,
+	}, nil
+}
+
+func (s *userService) GetWatchlist(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error) {
+	games, err := s.fetchBacklogGames(userID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.PaginatedResponse[[]dto.GameSummary]{
+		Status: "success",
+		Data:   games,
+	}, nil
 }

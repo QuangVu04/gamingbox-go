@@ -24,6 +24,10 @@ type ListRepository interface {
 	GetBacklogEntries(listID uint, limit int) ([]models.ListEntry, error)
 	GetTrendingLists(page, limit int) ([]ListTrendingData, int64, error)
 	FindByID(id uint) (*models.List, error)
+	FindDetailByID(id uint) (*models.List, error)
+	Create(list *models.List) error
+	Update(list *models.List) error
+	Delete(id uint) error
 }
 
 type listRepository struct {
@@ -120,10 +124,56 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
 }
 
 func (r *listRepository) FindByID(id uint) (*models.List, error) {
-    var list models.List
-    err := r.db.First(&list, id).Error
-    if err != nil {
-        return nil, err
-    }
-    return &list, nil
+	var list models.List
+	err := r.db.First(&list, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &list, nil
+}
+
+func (r *listRepository) FindDetailByID(id uint) (*models.List, error) {
+	var list models.List
+	err := r.db.Preload("User").
+		Preload("Entries.Game.Images", "img_type = ?", "header").
+		First(&list, id).Error
+	return &list, err
+}
+
+func (r *listRepository) Create(list *models.List) error {
+	return r.db.Create(list).Error
+}
+
+func (r *listRepository) Update(list *models.List) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Update main list info
+		if err := tx.Save(list).Error; err != nil {
+			return err
+		}
+
+		// Handle entries update
+		if len(list.Entries) > 0 {
+			// Delete old entries
+			if err := tx.Where("list_id = ?", list.ID).Delete(&models.ListEntry{}).Error; err != nil {
+				return err
+			}
+			// Create new entries
+			if err := tx.Create(&list.Entries).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *listRepository) Delete(id uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("list_id = ?", id).Delete(&models.ListEntry{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&models.List{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

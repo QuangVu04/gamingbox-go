@@ -29,10 +29,10 @@ func NewLikeHandler(likeService services.LikeService) *LikeHandler {
 // @Tags         Likes
 // @Security     BearerAuth
 // @Produce      json
-// @Param        game_id path int true "ID của Game"
+// @Param        id path int true "ID của Game"
 // @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
 // @Failure      400  {object}  dto.ErrorResponse
-// @Router       /games/{game_id}/like [post]
+// @Router       /games/{id}/like [post]
 func (h *LikeHandler) LikeGame(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -40,15 +40,15 @@ func (h *LikeHandler) LikeGame(c *gin.Context) {
 		return
 	}
 
-	gameIDStr := c.Param("game_id")
-	gameID, err := strconv.ParseUint(gameIDStr, 10, 32)
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		utils.ValidationError(c, "game_id không hợp lệ")
 		return
 	}
 
 	ctx := context.Background()
-	result, err := h.likeService.ToggleLike(ctx, userID, uint(gameID), "game")
+	result, err := h.likeService.ToggleLike(ctx, userID, uint(id), "game")
 	if err != nil {
 		handleLikeError(c, err)
 		return
@@ -63,10 +63,10 @@ func (h *LikeHandler) LikeGame(c *gin.Context) {
 // @Tags         Likes
 // @Security     BearerAuth
 // @Produce      json
-// @Param        review_id path int true "ID của Review"
+// @Param        id path int true "ID của Review"
 // @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
 // @Failure      400  {object}  dto.ErrorResponse
-// @Router       /reviews/{review_id}/like [post]
+// @Router       /reviews/{id}/like [post]
 func (h *LikeHandler) LikeReview(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -74,15 +74,15 @@ func (h *LikeHandler) LikeReview(c *gin.Context) {
 		return
 	}
 
-	reviewIDStr := c.Param("review_id")
-	reviewID, err := strconv.ParseUint(reviewIDStr, 10, 32)
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		utils.ValidationError(c, "review_id không hợp lệ")
 		return
 	}
 
 	ctx := context.Background()
-	result, err := h.likeService.ToggleLike(ctx, userID, uint(reviewID), "review")
+	result, err := h.likeService.ToggleLike(ctx, userID, uint(id), "review")
 	if err != nil {
 		handleLikeError(c, err)
 		return
@@ -97,10 +97,10 @@ func (h *LikeHandler) LikeReview(c *gin.Context) {
 // @Tags         Likes
 // @Security     BearerAuth
 // @Produce      json
-// @Param        list_id path int true "ID của List"
+// @Param        id path int true "ID của List"
 // @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
 // @Failure      400  {object}  dto.ErrorResponse
-// @Router       /lists/{list_id}/like [post]
+// @Router       /lists/{id}/like [post]
 func (h *LikeHandler) LikeList(c *gin.Context) {
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
@@ -108,15 +108,15 @@ func (h *LikeHandler) LikeList(c *gin.Context) {
 		return
 	}
 
-	listIDStr := c.Param("list_id")
-	listID, err := strconv.ParseUint(listIDStr, 10, 32)
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		utils.ValidationError(c, "list_id không hợp lệ")
 		return
 	}
 
 	ctx := context.Background()
-	result, err := h.likeService.ToggleLike(ctx, userID, uint(listID), "list")
+	result, err := h.likeService.ToggleLike(ctx, userID, uint(id), "list")
 	if err != nil {
 		handleLikeError(c, err)
 		return
