@@ -97,7 +97,7 @@ func Load() {
 		JWTSecret:         getEnv("JWT_SECRET", "fallback-secret"),
 		JWTAccessExpires:  accessExpires,
 		JWTRefreshExpires: refreshExpires,
-		FrontEndUrl:       getEnv("FRONTEND_URL", "http://localhost:4200"),
+		FrontEndUrl:       getEnv("FRONTEND_URL", "http://localhost:5173"),
 		ReturnUrl:         getEnv("RETURN_URL", "http://localhost:8080/api/v1/auth/steam/callback"),
 		SteamOpenIdUrl:    getEnv("STEAM_OPEN_ID_URL", "https://steamcommunity.com/openid/login"),
 		SteamApiKey:       getEnv("STEAM_API_KEY", ""),

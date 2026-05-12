@@ -128,7 +128,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 
 func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", config.App.FrontEndUrl)
+		// Ép buộc cho phép cổng 5173 để xử lý triệt để lỗi CORS
+		c.Header("Access-Control-Allow-Origin", "http://localhost:5173")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
 		c.Header("Access-Control-Allow-Credentials", "true")
