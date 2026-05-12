@@ -78,20 +78,21 @@ func (h *SteamHandler) CallbackHandle(c *gin.Context) {
 respBytes, _ := json.Marshal(result)
 	respData := string(respBytes)
 
+	//tạm hardacode localhost 5173
 	c.Header("Content-Type", "text/html")
 	c.String(http.StatusOK, fmt.Sprintf(`
         <html>
             <body>
                 <script>
-                    // Gửi dữ liệu về cửa sổ mẹ (Angular)
-                    window.opener.postMessage(%s, "%s");
+                    // Gửi dữ liệu về cửa sổ mẹ (Vite)
+                    window.opener.postMessage(%s, "http://localhost:5173");
                     
                     // Tự đóng cửa sổ popup này lại
                     window.close();
                 </script>
             </body>
         </html>
-    `, respData, config.App.FrontEndUrl))
+    `, respData))
 }
 
 
