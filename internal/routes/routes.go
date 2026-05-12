@@ -52,13 +52,13 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		users.GET("/stats", userHandler.GetStats)
 		users.GET("/diary", userHandler.GetDiary)
 		users.GET("/watchlist", userHandler.GetWatchlist)
+		users.GET("/followers", userHandler.GetFollowers)
+		users.GET("/following", userHandler.GetFollowing)
 
 		usersProtected := users.Group("")
 		usersProtected.Use(middleware.Authenticate())
 		{
 			usersProtected.GET("/me", userHandler.Me)
-			usersProtected.GET("/me/following", userHandler.GetFollowing)
-			usersProtected.GET("/me/followers", userHandler.GetFollowers)
 			usersProtected.POST("/follow", userHandler.FollowUser)
 		}
 	}

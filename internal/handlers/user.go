@@ -126,10 +126,18 @@ func (h *UserHandler) FollowUser(c *gin.Context) {
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /users/me/following [get]
 func (h *UserHandler) GetFollowing(c *gin.Context) {
-	userID, ok := middleware.GetCurrentUserID(c)
-	if !ok {
-		utils.Unauthorized(c, "Unauthorized")
-		return
+	var userID uint
+	idStr := c.Query("id")
+	if idStr == "" {
+		uid, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			utils.Unauthorized(c, "Vui lòng đăng nhập")
+			return
+		}
+		userID = uid
+	} else {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		userID = uint(id)
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -264,10 +272,18 @@ func (h *UserHandler) GetWatchlist(c *gin.Context) {
 // @Failure      500  {object}  dto.ErrorResponse
 // @Router       /users/me/followers [get]
 func (h *UserHandler) GetFollowers(c *gin.Context) {
-	userID, ok := middleware.GetCurrentUserID(c)
-	if !ok {
-		utils.Unauthorized(c, "Unauthorized")
-		return
+	var userID uint
+	idStr := c.Query("id")
+	if idStr == "" {
+		uid, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			utils.Unauthorized(c, "Vui lòng đăng nhập")
+			return
+		}
+		userID = uid
+	} else {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		userID = uint(id)
 	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

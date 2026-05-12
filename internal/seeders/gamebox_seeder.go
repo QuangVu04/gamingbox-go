@@ -109,5 +109,38 @@ func SeedGameboxData(db *gorm.DB) {
 		})
 	}
 
+	// 5. Seed Follows
+	log.Println("Đang tạo Follows...")
+	for i := 0; i < 40; i++ {
+		follower := users[rand.Intn(len(users))]
+		following := users[rand.Intn(len(users))]
+
+		if follower.ID != following.ID {
+			db.FirstOrCreate(&models.Follow{}, models.Follow{
+				FollowerID:  follower.ID,
+				FollowingID: following.ID,
+			})
+		}
+	}
+
+	// 6. Update Stats (Followers, Following, Reviews, etc.)
+	log.Println("Đang cập nhật thống kê cho Users...")
+	for _, user := range users {
+		var fwrCount, fwgCount, revCount, logCount, lstCount int64
+		db.Model(&models.Follow{}).Where("following_id = ?", user.ID).Count(&fwrCount)
+		db.Model(&models.Follow{}).Where("follower_id = ?", user.ID).Count(&fwgCount)
+		db.Model(&models.Review{}).Where("user_id = ?", user.ID).Count(&revCount)
+		db.Model(&models.GameLog{}).Where("user_id = ?", user.ID).Count(&logCount)
+		db.Model(&models.List{}).Where("user_id = ?", user.ID).Count(&lstCount)
+
+		db.Model(&user).Updates(map[string]interface{}{
+			"follower_count":   int(fwrCount),
+			"following_count":  int(fwgCount),
+			"review_count":     int(revCount),
+			"game_logs_count":  int(logCount),
+			"list_count":       int(lstCount),
+		})
+	}
+
 	log.Println("Gamebox Seeder đã hoàn tất!")
 }
