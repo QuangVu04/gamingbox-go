@@ -20,6 +20,7 @@ type ListService interface {
 	UpdateList(ctx context.Context, userID, listID uint, req dto.UpdateListRequest) (*dto.ListDetailResponse, error)
 	DeleteList(ctx context.Context, userID, listID uint) error
 	GetListDetail(ctx context.Context, listID uint) (*dto.ListDetailResponse, error)
+	GetGameLists(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error)
 }
 
 type listService struct {
@@ -183,4 +184,34 @@ func (s *listService) GetListDetail(ctx context.Context, listID uint) (*dto.List
 	}
 
 	return mapper.ToListDetailResponse(list), nil
+}
+func (s *listService) GetGameLists(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+
+	lists, total, err := s.listRepo.GetGameLists(gameID, page, limit, sort)
+	if err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể lấy danh sách list")
+	}
+
+	responses := mapper.ToTrendingListResponsesFromModels(lists)
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return &dto.GameListsResponse{
+		Lists: responses,
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+	}, nil
 }

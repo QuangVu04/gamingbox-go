@@ -263,3 +263,35 @@ func (h *ReviewHandler) GetReviewDetail(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, review)
 }
+// GetGameReviews godoc
+// @Summary      Lấy danh sách Review của Game
+// @Description  Lấy danh sách các bài đánh giá của một game (Phân trang 25)
+// @Tags         Reviews
+// @Produce      json
+// @Param        id path int true "ID của Game"
+// @Param        page query int false "Trang hiện tại (mặc định 1)"
+// @Param        limit query int false "Số lượng mỗi trang (mặc định 25)"
+// @Param        sort query string false "Sắp xếp: newest, earliest, highest_rating, lowest_rating (mặc định newest)"
+// @Success      200  {object}  dto.SuccessResponse[dto.GameReviewsResponse]
+// @Router       /games/{id}/reviews [get]
+func (h *ReviewHandler) GetGameReviews(c *gin.Context) {
+	idStr := c.Param("id")
+	gameID, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 25, 1, 100)
+	sort := c.DefaultQuery("sort", "newest")
+
+	ctx := context.Background()
+	result, err := h.reviewService.GetGameReviews(ctx, uint(gameID), page, limit, sort)
+	if err != nil {
+		handleReviewError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, result)
+}

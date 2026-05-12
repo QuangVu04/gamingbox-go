@@ -197,3 +197,35 @@ func (h *ListHandler) DeleteList(c *gin.Context) {
 	utils.Success(c, http.StatusOK, "Đã xóa danh sách")
 }
 
+// GetGameLists godoc
+// @Summary      Lấy danh sách List chứa Game
+// @Description  Lấy các danh sách game công khai có chứa game này (Phân trang 25)
+// @Tags         Lists
+// @Produce      json
+// @Param        id path int true "ID của Game"
+// @Param        page query int false "Trang hiện tại (mặc định 1)"
+// @Param        limit query int false "Số lượng mỗi trang (mặc định 25)"
+// @Param        sort query string false "Sắp xếp: list_name, popularity, recently_updated, newest, oldest (mặc định newest)"
+// @Success      200  {object}  dto.SuccessResponse[dto.GameListsResponse]
+// @Router       /games/{id}/lists [get]
+func (h *ListHandler) GetGameLists(c *gin.Context) {
+	idStr := c.Param("id")
+	gameID, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 25, 1, 100)
+	sort := c.DefaultQuery("sort", "newest")
+
+	ctx := context.Background()
+	result, err := h.listService.GetGameLists(ctx, uint(gameID), page, limit, sort)
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, result)
+}

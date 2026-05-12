@@ -53,3 +53,7 @@ type ListDetailResponse struct {
 	CreatedAt    string         `json:"created_at"`
 	Games        []ListEntryDTO `json:"games"`
 }
+type GameListsResponse struct {
+	Lists      []ListTrendingResponse `json:"lists"`
+	Pagination PaginationDTO          `json:"pagination"`
+}

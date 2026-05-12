@@ -22,6 +22,7 @@ type ReviewService interface {
 	GetComments(ctx context.Context, reviewID uint) ([]dto.CommentResponse, error)
 	AddComment(ctx context.Context, userID, reviewID uint, req dto.CommentRequest) (*dto.CommentResponse, error)
 	GetReviewByID(ctx context.Context, reviewID uint) (*dto.ReviewTrendingResponse, error)
+	GetGameReviews(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameReviewsResponse, error)
 }
 
 type reviewService struct {
@@ -232,4 +233,52 @@ func (s *reviewService) GetReviewByID(ctx context.Context, reviewID uint) (*dto.
 
 	commentCounts, _ := s.reviewRepo.GetCommentCounts([]uint{reviewID})
 	return mapper.ToReviewTrendingResponse(review, commentCounts[reviewID]), nil
+}
+func (s *reviewService) GetGameReviews(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameReviewsResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+
+	reviews, total, err := s.reviewRepo.GetGameReviews(gameID, page, limit, sort)
+	if err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể lấy danh sách review")
+	}
+
+	reviewIDs := make([]uint, 0, len(reviews))
+	for _, r := range reviews {
+		reviewIDs = append(reviewIDs, r.ID)
+	}
+
+	commentCounts, _ := s.reviewRepo.GetCommentCounts(reviewIDs)
+
+	// Since Review model doesn't have Rating, we need to fetch them if needed. 
+	// But our GetGameReviews already preloads User. 
+	// We might need to fetch the ratings for these users for this game.
+	// Actually, the ReviewCompactResponse has a Rating field.
+	
+	// Let's use a simpler mapping for now, but we should ideally fetch ratings.
+	// If the Rating table exists, we can fetch it.
+	
+	responses := make([]dto.ReviewCompactResponse, 0, len(reviews))
+	for _, r := range reviews {
+		responses = append(responses, *mapper.ToReviewCompactResponse(&r, commentCounts[r.ID]))
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return &dto.GameReviewsResponse{
+		Reviews: responses,
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+	}, nil
 }

@@ -28,6 +28,7 @@ type ListRepository interface {
 	Create(list *models.List) error
 	Update(list *models.List) error
 	Delete(id uint) error
+	GetGameLists(gameID uint, page, limit int, sort string) ([]models.List, int64, error)
 }
 
 type listRepository struct {
@@ -176,4 +177,50 @@ func (r *listRepository) Delete(id uint) error {
 		}
 		return nil
 	})
+}
+func (r *listRepository) GetGameLists(gameID uint, page, limit int, sort string) ([]models.List, int64, error) {
+	var lists []models.List
+	var total int64
+	offset := (page - 1) * limit
+
+	// Subquery to find list IDs containing the game
+	subQuery := r.db.Model(&models.ListEntry{}).Select("list_id").Where("game_id = ?", gameID)
+
+	db := r.db.Model(&models.List{}).
+		Preload("User").
+		Preload("Entries", func(db *gorm.DB) *gorm.DB {
+			return db.Order("position ASC")
+		}).
+		Preload("Entries.Game.Images", "img_type = ?", "header").
+		Where("id IN (?) AND is_public = ?", subQuery, true)
+
+	// Get total
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Sort logic
+	switch sort {
+	case "list_name":
+		db = db.Order("title ASC")
+	case "popularity":
+		db = db.Order("like_count DESC")
+	case "recently_updated":
+		db = db.Order("updated_at DESC")
+	case "oldest":
+		db = db.Order("created_at ASC")
+	default: // newest
+		db = db.Order("created_at DESC")
+	}
+
+	err := db.Offset(offset).Limit(limit).Find(&lists).Error
+	
+	// Truncate entries to first 5 for thumbnails in response
+	for i := range lists {
+		if len(lists[i].Entries) > 5 {
+			lists[i].Entries = lists[i].Entries[:5]
+		}
+	}
+
+	return lists, total, err
 }

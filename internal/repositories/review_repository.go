@@ -19,6 +19,7 @@ type ReviewRepository interface {
 	GetComments(reviewID uint) ([]models.Comment, error)
 	AddComment(comment *models.Comment) error
 	GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error)
+	GetGameReviews(gameID uint, page, limit int, sort string) ([]models.Review, int64, error)
 }
 
 type reviewRepository struct {
@@ -142,4 +143,34 @@ func (r *reviewRepository) GetByGameID(gameID uint, orderBy string, limit int) (
 
 	err := db.Limit(limit).Find(&reviews).Error
 	return reviews, err
+}
+func (r *reviewRepository) GetGameReviews(gameID uint, page, limit int, sort string) ([]models.Review, int64, error) {
+	var reviews []models.Review
+	var total int64
+	offset := (page - 1) * limit
+
+	db := r.db.Table("reviews").
+		Select("reviews.*, ra.rating").
+		Joins("LEFT JOIN ratings ra ON reviews.user_id = ra.user_id AND reviews.target_id = ra.game_id").
+		Where("reviews.target_id = ? AND reviews.target_type = ?", gameID, "game")
+
+	// Get total
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Sort logic
+	switch sort {
+	case "earliest":
+		db = db.Order("reviews.created_at ASC")
+	case "highest_rating":
+		db = db.Order("ra.rating DESC, reviews.created_at DESC")
+	case "lowest_rating":
+		db = db.Order("ra.rating ASC, reviews.created_at DESC")
+	default: // newest
+		db = db.Order("reviews.created_at DESC")
+	}
+
+	err := db.Preload("User").Offset(offset).Limit(limit).Find(&reviews).Error
+	return reviews, total, err
 }

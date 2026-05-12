@@ -68,3 +68,7 @@ type CommentResponse struct {
 	ParentID  *uint          `json:"parent_id"`
 	CreatedAt string         `json:"created_at"`
 }
+type GameReviewsResponse struct {
+	Reviews    []ReviewCompactResponse `json:"reviews"`
+	Pagination PaginationDTO           `json:"pagination"`
+}

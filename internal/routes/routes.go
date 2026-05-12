@@ -69,6 +69,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		games.GET("/popular", gameHandler.PopularGames)
 		games.GET("/search", gameHandler.SearchGames)
 		games.GET("/:id", gameHandler.GetGameDetail)
+		games.GET("/:id/likes", likeHandler.GetGameLikes)
+		games.GET("/:id/reviews", reviewHandler.GetGameReviews)
+		games.GET("/:id/lists", listHandler.GetGameLists)
 
 		gamesProtected := games.Group("")
 		gamesProtected.Use(middleware.Authenticate())

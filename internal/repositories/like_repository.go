@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"vault/be/internal/dto"
 	"vault/be/internal/models"
 
 	"gorm.io/gorm"
@@ -28,6 +29,9 @@ type LikeRepository interface {
 
 	// GetLikeCount gets the like count for a target (polymorphic)
 	GetLikeCount(targetID uint, targetType string) (int, error)
+
+	// GetLikesWithUser retrieves users who liked a target with additional info
+	GetLikesWithUser(targetID uint, targetType string, page, pageSize int, sort string) ([]dto.GameLikeUserDTO, int64, error)
 }
 
 type likeRepository struct {
@@ -171,4 +175,50 @@ func (r *likeRepository) decrementLikeCount(tx *gorm.DB, targetID uint, targetTy
 			Update("like_count", clause.Expr{SQL: "like_count - 1"}).Error
 	}
 	return nil
+}
+
+// GetLikesWithUser retrieves users who liked a target with additional info
+func (r *likeRepository) GetLikesWithUser(targetID uint, targetType string, page, pageSize int, sort string) ([]dto.GameLikeUserDTO, int64, error) {
+	var results []dto.GameLikeUserDTO
+	var total int64
+
+	// Base query
+	query := r.db.Table("likes l").
+		Select(`
+			u.id as user_id, 
+			u.username, 
+			u.avatar_url, 
+			u.follower_count,
+			l.created_at as liked_at,
+			ra.rating as rating,
+			EXISTS(SELECT 1 FROM reviews rev WHERE rev.user_id = u.id AND rev.target_id = l.target_id AND rev.target_type = ?) as has_review
+		`, targetType).
+		Joins("JOIN users u ON l.user_id = u.id").
+		Joins("LEFT JOIN ratings ra ON l.user_id = ra.user_id AND l.target_id = ra.game_id").
+		Where("l.target_id = ? AND l.target_type = ?", targetID, targetType)
+
+	// Count total
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	switch sort {
+	case "newest":
+		query = query.Order("l.created_at DESC")
+	case "earliest":
+		query = query.Order("l.created_at ASC")
+	case "member_name":
+		query = query.Order("u.username ASC")
+	case "member_popularity":
+		query = query.Order("u.follower_count DESC")
+	default:
+		query = query.Order("l.created_at DESC")
+	}
+
+	// Pagination
+	offset := (page - 1) * pageSize
+	err := query.Limit(pageSize).Offset(offset).Scan(&results).Error
+
+	return results, total, err
 }

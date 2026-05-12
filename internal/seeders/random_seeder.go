@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -55,6 +56,7 @@ func SeedRandomData(db *gorm.DB) {
 
 	seedGamesFromSteam(db)
 	seedRandomUsers(db, 50) // Tạo ngẫu nhiên 50 người dùng
+	seedRandomInteractions(db)
 	
 	log.Println("Random Seeder đã hoàn tất!")
 }
@@ -166,11 +168,89 @@ func seedRandomUsers(db *gorm.DB, count int) {
 
 	for i := 0; i < count; i++ {
 		user := models.User{
-			Email:    faker.Email(),
-			Username: faker.Username(),
-			Password: password,
-			Role:     models.RoleUser,
+			Email:         faker.Email(),
+			Username:      faker.Username(),
+			Password:      password,
+			Role:          models.RoleUser,
+			FollowerCount: utils.RandomInt(0, 5000), // Phục vụ việc sort member_popularity
 		}
 		db.Create(&user)
+	}
+}
+
+func seedRandomInteractions(db *gorm.DB) {
+	log.Println("Đang tạo các tương tác giả lập (Like, Rating, Review)...")
+
+	var users []models.User
+	db.Find(&users)
+
+	var games []models.Game
+	db.Find(&games)
+
+	if len(users) == 0 || len(games) == 0 {
+		return
+	}
+
+	for _, game := range games {
+		// Mỗi game sẽ có từ 10 đến 30 người like
+		numLikes := utils.RandomInt(10, 30)
+		
+		// Shuffle users using rand.Shuffle
+		rand.Shuffle(len(users), func(i, j int) {
+			users[i], users[j] = users[j], users[i]
+		})
+
+		for i := 0; i < numLikes && i < len(users); i++ {
+			user := users[i]
+
+			// 1. Tạo Like
+			createdAt := time.Now().Add(-time.Duration(utils.RandomInt(1, 1000)) * time.Hour)
+			like := models.Like{
+				UserID:     user.ID,
+				TargetID:   game.ID,
+				TargetType: "game",
+				CreatedAt:  createdAt,
+			}
+			db.FirstOrCreate(&like, models.Like{UserID: user.ID, TargetID: game.ID, TargetType: "game"})
+
+			// 2. Tạo Rating
+			rating := models.Rating{
+				UserID:    user.ID,
+				GameID:    game.ID,
+				Rating:    float64(utils.RandomInt(1, 10)) / 2.0, // 0.5 to 5.0
+				CreatedAt: createdAt,
+			}
+			db.FirstOrCreate(&rating, models.Rating{UserID: user.ID, GameID: game.ID})
+
+			// 3. Thi thoảng tạo Review (30% cơ hội)
+			if utils.RandomInt(1, 100) <= 30 {
+				review := models.Review{
+					UserID:     user.ID,
+					TargetID:   game.ID,
+					TargetType: "game",
+					Title:      fmt.Sprintf("Review for %s", game.Title),
+					Content:    faker.Paragraph(),
+					Recommend:  "recommend",
+				}
+				review.CreatedAt = createdAt // Set CreatedAt directly
+				db.FirstOrCreate(&review, models.Review{UserID: user.ID, TargetID: game.ID, TargetType: "game"})
+			}
+		}
+
+		// Cập nhật lại LikeCount và AvgRating cho Game
+		var likeCount int64
+		db.Model(&models.Like{}).Where("target_id = ? AND target_type = ?", game.ID, "game").Count(&likeCount)
+
+		var avgRating float64
+		db.Model(&models.Rating{}).Where("game_id = ?", game.ID).Select("AVG(rating)").Scan(&avgRating)
+
+		var reviewCount int64
+		db.Model(&models.Review{}).Where("target_id = ? AND target_type = ?", game.ID, "game").Count(&reviewCount)
+
+		db.Model(&game).Updates(map[string]interface{}{
+			"like_count":   int(likeCount),
+			"avg_rating":   avgRating,
+			"review_count": int(reviewCount),
+		})
 	}
 }

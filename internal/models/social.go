@@ -17,6 +17,7 @@ type Review struct {
 	LikeCount  int    `gorm:"default:0"`
 	Recommend  string `gorm:"type:enum('recommend', 'mixed', 'not_recommend')"`
 	IsSpoiler  bool   `gorm:"default:false"`
+	Rating     float64 `gorm:"-" json:"rating"`
 
 	Game Game `gorm:"foreignKey:TargetID;references:ID"`
 	User User `gorm:"foreignKey:UserID;references:ID"`

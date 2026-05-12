@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"math"
 
 	"vault/be/internal/dto"
 	"vault/be/internal/repositories"
@@ -14,6 +15,8 @@ type LikeService interface {
 	ToggleLike(ctx context.Context, userID, targetID uint, targetType string) (*dto.LikeGameResponse, error)
 	// CheckLike checks if user has liked a target
 	CheckLike(ctx context.Context, userID, targetID uint, targetType string) (bool, error)
+	// GetGameLikes retrieves users who liked a game with pagination and sorting
+	GetGameLikes(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameLikesResponse, error)
 }
 
 type likeService struct {
@@ -114,4 +117,33 @@ func (s *likeService) invalidateTrendingCache(ctx context.Context) {
 	for iter.Next(ctx) {
 		_ = s.rdb.Del(ctx, iter.Val())
 	}
+}
+
+func (s *likeService) GetGameLikes(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameLikesResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 25
+	}
+
+	likes, total, err := s.likeRepo.GetLikesWithUser(gameID, "game", page, limit, sort)
+	if err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể lấy danh sách like")
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	return &dto.GameLikesResponse{
+		Likes: likes,
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+	}, nil
 }
