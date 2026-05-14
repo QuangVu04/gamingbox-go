@@ -14,6 +14,9 @@ type GameRepository interface {
 	GetPopular(page, limit int) ([]models.Game, int64, error)
 	GetByStudio(studioID uint, excludeGameID uint, limit int) ([]models.Game, error)
 	GetByGenres(genreIDs []uint, excludeGameID uint, limit int) ([]models.Game, error)
+	Count() (int64, error)
+	CountRecent(since time.Time) (int64, error)
+	GetGenreStats() (map[string]int, error)
 }
 
 type gameRepository struct {
@@ -205,3 +208,39 @@ func (r *gameRepository) GetByGenres(genreIDs []uint, excludeGameID uint, limit 
 		Find(&games).Error
 	return games, err
 }
+
+func (r *gameRepository) Count() (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Game{}).Count(&count).Error
+	return count, err
+}
+
+func (r *gameRepository) CountRecent(since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Game{}).Where("created_at >= ?", since).Count(&count).Error
+	return count, err
+}
+
+func (r *gameRepository) GetGenreStats() (map[string]int, error) {
+	var results []struct {
+		Name  string
+		Count int
+	}
+
+	err := r.db.Table("genres").
+		Select("genres.name, COUNT(game_genres.game_id) as count").
+		Joins("LEFT JOIN game_genres ON genres.id = game_genres.genre_id").
+		Group("genres.id").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	stats := make(map[string]int)
+	for _, res := range results {
+		stats[res.Name] = res.Count
+	}
+	return stats, nil
+}
+

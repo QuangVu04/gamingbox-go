@@ -63,6 +63,7 @@ func (a *App) Run() {
 	reviewService := services.NewReviewService(reviewRepo, userRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
 	likeService := services.NewLikeService(likeRepo, a.RDB, notificationService, reviewRepo, listRepo)
+	adminService := services.NewAdminService(userRepo, gameRepo, reviewRepo, gameLogRepo, activityLogRepo)
 
 
 	authH := handlers.NewAuthHandler(authService)
@@ -73,6 +74,7 @@ func (a *App) Run() {
 	listH := handlers.NewListHandler(listService)
 	likeH := handlers.NewLikeHandler(likeService)
 	notifH := handlers.NewNotificationHandler(notificationService)
+	adminH := handlers.NewAdminHandler(userService, adminService)
 
 	cronMgr, err := cron.NewCronManager(a.RDB, gameService, reviewService, listService)
 	if err != nil {
@@ -87,7 +89,7 @@ func (a *App) Run() {
 	go notificationWorker.Start(context.Background())
 
 	// 5. Setup Routes
-	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH)
+	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH, adminH)
 
 	log.Printf("Server starting on port %s", config.App.Port)
 	r.Run(":" + config.App.Port)

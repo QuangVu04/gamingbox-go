@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"time"
 	"vault/be/internal/models"
 	"gorm.io/gorm"
 )
@@ -9,6 +10,9 @@ type GameLogRepository interface {
 	GetByUserID(userID uint, limit int) ([]models.GameLog, error)
 	LogGame(log *models.GameLog) error
 	RemoveLog(userID, gameID uint) error
+	Count() (int64, error)
+	CountRecent(since time.Time) (int64, error)
+	GetDailyCounts(since time.Time) (map[string]int, error)
 }
 
 type gameLogRepository struct {
@@ -33,4 +37,39 @@ func (r *gameLogRepository) LogGame(log *models.GameLog) error {
 
 func (r *gameLogRepository) RemoveLog(userID, gameID uint) error {
 	return r.db.Where("user_id = ? AND game_id = ?", userID, gameID).Delete(&models.GameLog{}).Error
-}
+}
+
+func (r *gameLogRepository) Count() (int64, error) {
+	var count int64
+	err := r.db.Model(&models.GameLog{}).Count(&count).Error
+	return count, err
+}
+
+func (r *gameLogRepository) CountRecent(since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.GameLog{}).Where("logged_at >= ?", since).Count(&count).Error
+	return count, err
+}
+
+func (r *gameLogRepository) GetDailyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Date  string
+		Count int
+	}
+
+	err := r.db.Model(&models.GameLog{}).
+		Select("DATE_FORMAT(logged_at, '%Y-%m-%d') as date, COUNT(*) as count").
+		Where("logged_at >= ?", since).
+		Group("date").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Date] = res.Count
+	}
+	return counts, nil
+}

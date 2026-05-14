@@ -18,6 +18,8 @@ type UserService interface {
 	GetUserStats(userID uint) (*dto.UserStatsResponse, error)
 	GetDiary(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error)
 	GetWatchlist(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error)
+	UpdateUserStatus(userID uint, status string) error
+	UpdateUserRole(userID uint, role string) error
 }
 
 type userService struct {
@@ -387,4 +389,24 @@ func (s *userService) GetWatchlist(userID uint, page, limit int) (*dto.Paginated
 		Status: "success",
 		Data:   games,
 	}, nil
+}
+
+func (s *userService) UpdateUserStatus(userID uint, status string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
+	}
+
+	user.Status = status
+	return s.userRepo.Update(user)
+}
+
+func (s *userService) UpdateUserRole(userID uint, role string) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
+	}
+
+	user.Role = models.UserRole(role)
+	return s.userRepo.Update(user)
 }

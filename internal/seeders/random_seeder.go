@@ -203,15 +203,31 @@ func seedRandomInteractions(db *gorm.DB) {
 		for i := 0; i < numLikes && i < len(users); i++ {
 			user := users[i]
 
+			// Đảm bảo có ít nhất một số tương tác trong 7 ngày gần đây để lên chart
+			daysAgo := utils.RandomInt(0, 30) // 0 to 30 days ago
+			if i%3 == 0 {
+				daysAgo = utils.RandomInt(0, 6) // Force some into the last 7 days
+			}
+			createdAt := time.Now().AddDate(0, 0, -daysAgo)
+
 			// 1. Tạo Like
-			createdAt := time.Now().Add(-time.Duration(utils.RandomInt(1, 1000)) * time.Hour)
 			like := models.Like{
 				UserID:     user.ID,
 				TargetID:   game.ID,
 				TargetType: "game",
 				CreatedAt:  createdAt,
 			}
-			db.FirstOrCreate(&like, models.Like{UserID: user.ID, TargetID: game.ID, TargetType: "game"})
+			if err := db.FirstOrCreate(&like, models.Like{UserID: user.ID, TargetID: game.ID, TargetType: "game"}).Error; err == nil {
+				// Tạo ActivityLog cho Like
+				db.Create(&models.ActivityLog{
+					UserID:     user.ID,
+					ActionType: "like",
+					TargetID:   game.ID,
+					TargetType: "game",
+					Preview:    fmt.Sprintf("đã thích %s", game.Title),
+					CreatedAt:  createdAt,
+				})
+			}
 
 			// 2. Tạo Rating
 			rating := models.Rating{
@@ -220,7 +236,17 @@ func seedRandomInteractions(db *gorm.DB) {
 				Rating:    float64(utils.RandomInt(1, 10)) / 2.0, // 0.5 to 5.0
 				CreatedAt: createdAt,
 			}
-			db.FirstOrCreate(&rating, models.Rating{UserID: user.ID, GameID: game.ID})
+			if err := db.FirstOrCreate(&rating, models.Rating{UserID: user.ID, GameID: game.ID}).Error; err == nil {
+				// Tạo ActivityLog cho Rating
+				db.Create(&models.ActivityLog{
+					UserID:     user.ID,
+					ActionType: "create",
+					TargetID:   game.ID,
+					TargetType: "rating",
+					Preview:    fmt.Sprintf("đã đánh giá %s %.1f sao", game.Title, rating.Rating),
+					CreatedAt:  createdAt,
+				})
+			}
 
 			// 3. Thi thoảng tạo Review (30% cơ hội)
 			if utils.RandomInt(1, 100) <= 30 {
@@ -233,7 +259,28 @@ func seedRandomInteractions(db *gorm.DB) {
 					Recommend:  "recommend",
 				}
 				review.CreatedAt = createdAt // Set CreatedAt directly
-				db.FirstOrCreate(&review, models.Review{UserID: user.ID, TargetID: game.ID, TargetType: "game"})
+				if err := db.FirstOrCreate(&review, models.Review{UserID: user.ID, TargetID: game.ID, TargetType: "game"}).Error; err == nil {
+					// Tạo ActivityLog cho Review
+					db.Create(&models.ActivityLog{
+						UserID:     user.ID,
+						ActionType: "create",
+						TargetID:   review.ID,
+						TargetType: "review",
+						Preview:    fmt.Sprintf("đã viết đánh giá cho %s", game.Title),
+						CreatedAt:  createdAt,
+					})
+				}
+			}
+
+			// 4. Tạo GameLog (Nhật ký chơi game) - Quan trọng để lên Chart "Logs"
+			if utils.RandomInt(1, 100) <= 50 {
+				logEntry := models.GameLog{
+					UserID:   user.ID,
+					GameID:   game.ID,
+					LoggedAt: createdAt,
+					Status:   "completed",
+				}
+				db.FirstOrCreate(&logEntry, models.GameLog{UserID: user.ID, GameID: game.ID})
 			}
 		}
 

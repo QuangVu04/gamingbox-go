@@ -11,7 +11,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler, notifHandler *handlers.NotificationHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler, notifHandler *handlers.NotificationHandler, adminHandler *handlers.AdminHandler) *gin.Engine {
 	if config.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -124,6 +124,18 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		notifications.GET("", notifHandler.GetNotifications)
 		notifications.POST("/:id/read", notifHandler.MarkAsRead)
 		notifications.POST("/read-all", notifHandler.MarkAllAsRead)
+	}
+
+	admin := v1.Group("/admin")
+	admin.Use(middleware.Authenticate(), middleware.RequireAdmin())
+	{
+		admin.GET("/stats", adminHandler.GetDashboardStats)
+		users := admin.Group("/users")
+		{
+			users.GET("/:id", adminHandler.GetUserDetail)
+			users.PATCH("/:id/status", adminHandler.UpdateStatus)
+			users.PATCH("/:id/role", adminHandler.UpdateRole)
+		}
 	}
 
 	return r

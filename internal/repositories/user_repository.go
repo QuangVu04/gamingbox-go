@@ -1,6 +1,7 @@
 package repositories
 
 import (
+    "time"
     "vault/be/internal/models"
 
     "gorm.io/gorm"
@@ -16,6 +17,8 @@ type UserRepository interface {
     ToggleFollow(followerID, followingID uint) (bool, error)
     GetFollowing(userID uint, offset, limit int) ([]models.User, int64, error)
     GetFollowers(userID uint, offset, limit int) ([]models.User, int64, error)
+    Count() (int64, error)
+    CountRecent(since time.Time) (int64, error)
 }
 
 type userRepository struct {
@@ -152,4 +155,16 @@ func (r *userRepository) GetFollowers(userID uint, offset, limit int) ([]models.
 	}
 
 	return users, total, nil
+}
+
+func (r *userRepository) Count() (int64, error) {
+	var count int64
+	err := r.db.Model(&models.User{}).Count(&count).Error
+	return count, err
+}
+
+func (r *userRepository) CountRecent(since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.User{}).Where("created_at >= ?", since).Count(&count).Error
+	return count, err
 }

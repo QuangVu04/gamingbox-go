@@ -20,6 +20,9 @@ type ReviewRepository interface {
 	AddComment(comment *models.Comment) error
 	GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error)
 	GetGameReviews(gameID uint, page, limit int, sort string) ([]models.Review, int64, error)
+	Count() (int64, error)
+	CountRecent(since time.Time) (int64, error)
+	GetDailyCounts(since time.Time) (map[string]int, error)
 }
 
 type reviewRepository struct {
@@ -174,3 +177,39 @@ func (r *reviewRepository) GetGameReviews(gameID uint, page, limit int, sort str
 	err := db.Preload("User").Offset(offset).Limit(limit).Find(&reviews).Error
 	return reviews, total, err
 }
+
+func (r *reviewRepository) Count() (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Review{}).Count(&count).Error
+	return count, err
+}
+
+func (r *reviewRepository) CountRecent(since time.Time) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Review{}).Where("created_at >= ?", since).Count(&count).Error
+	return count, err
+}
+
+func (r *reviewRepository) GetDailyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Date  string
+		Count int
+	}
+
+	err := r.db.Model(&models.Review{}).
+		Select("DATE_FORMAT(created_at, '%Y-%m-%d') as date, COUNT(*) as count").
+		Where("created_at >= ?", since).
+		Group("date").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Date] = res.Count
+	}
+	return counts, nil
+}
+
