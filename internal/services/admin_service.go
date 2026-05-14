@@ -10,6 +10,7 @@ import (
 
 type AdminService interface {
 	GetDashboardStats(timeframe string) (*dto.DashboardStatsResponse, error)
+	GetActivityChart(timeframe string) ([]dto.ChartItem, error)
 }
 
 type adminService struct {
@@ -18,6 +19,7 @@ type adminService struct {
 	reviewRepo      repositories.ReviewRepository
 	gameLogRepo     repositories.GameLogRepository
 	activityLogRepo repositories.ActivityLogRepository
+	ratingRepo      repositories.RatingRepository
 }
 
 func NewAdminService(
@@ -26,6 +28,7 @@ func NewAdminService(
 	reviewRepo repositories.ReviewRepository,
 	gameLogRepo repositories.GameLogRepository,
 	activityLogRepo repositories.ActivityLogRepository,
+	ratingRepo repositories.RatingRepository,
 ) AdminService {
 	return &adminService{
 		userRepo:        userRepo,
@@ -33,6 +36,7 @@ func NewAdminService(
 		reviewRepo:      reviewRepo,
 		gameLogRepo:     gameLogRepo,
 		activityLogRepo: activityLogRepo,
+		ratingRepo:      ratingRepo,
 	}
 }
 
@@ -45,8 +49,6 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	case "30 Ngày":
 		since = now.AddDate(0, 0, -30)
-	case "Tất cả":
-		since = time.Time{}
 	default: // 7 Ngày
 		since = now.AddDate(0, 0, -7)
 	}
@@ -70,26 +72,7 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 		activityDTOs = append(activityDTOs, mapper.ToActivitySummary(&act))
 	}
 
-	// 1. Activity Chart Data (last 7 days)
-	// Truncate to start of day for comparison
-	chartSince := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -6)
-	logDaily, _ := s.gameLogRepo.GetDailyCounts(chartSince)
-	reviewDaily, _ := s.reviewRepo.GetDailyCounts(chartSince)
-
-	weekdayNames := []string{"CN", "T2", "T3", "T4", "T5", "T6", "T7"}
-	chartData := make([]dto.ChartItem, 0)
-	for i := 0; i < 7; i++ {
-		date := chartSince.AddDate(0, 0, i)
-		dateStr := date.Format("2006-01-02")
-		
-		chartData = append(chartData, dto.ChartItem{
-			Name:    weekdayNames[date.Weekday()],
-			Logs:    logDaily[dateStr],
-			Reviews: reviewDaily[dateStr],
-		})
-	}
-
-	// 2. Genre Stats
+	// 1. Genre Stats
 	rawGenreStats, _ := s.gameRepo.GetGenreStats()
 	colors := []string{"#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#ef4444"}
 	genreStats := make([]dto.GenreStatItem, 0)
@@ -108,7 +91,7 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 		}
 	}
 
-	// 3. Top Games
+	// 2. Top Games
 	trendingGames, _, _ := s.gameRepo.GetTrendingGames(1, 5)
 	topGames := make([]dto.TopGameItem, 0)
 	for _, tg := range trendingGames {
@@ -153,9 +136,44 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 			Change:     fmt.Sprintf("+%d", newLogs),
 			IsPositive: true,
 		},
-		ActivityChart:    chartData,
 		RecentActivities: activityDTOs,
 		GenreStats:       genreStats,
 		TopGames:         topGames,
 	}, nil
 }
+
+func (s *adminService) GetActivityChart(timeframe string) ([]dto.ChartItem, error) {
+	now := time.Now()
+	days := 7
+	if timeframe == "30 Ngày" {
+		days = 30
+	}
+
+	chartSince := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
+	logDaily, _ := s.gameLogRepo.GetDailyCounts(chartSince)
+	reviewDaily, _ := s.reviewRepo.GetDailyCounts(chartSince)
+	ratingDaily, _ := s.ratingRepo.GetDailyCounts(chartSince)
+
+	weekdayNames := []string{"CN", "T2", "T3", "T4", "T5", "T6", "T7"}
+	chartData := make([]dto.ChartItem, 0)
+
+	for i := 0; i < days; i++ {
+		date := chartSince.AddDate(0, 0, i)
+		dateStr := date.Format("2006-01-02")
+
+		label := weekdayNames[date.Weekday()]
+		if days > 7 {
+			label = date.Format("02/01")
+		}
+
+		chartData = append(chartData, dto.ChartItem{
+			Name:    label,
+			Logs:    logDaily[dateStr],
+			Reviews: reviewDaily[dateStr],
+			Ratings: ratingDaily[dateStr],
+		})
+	}
+
+	return chartData, nil
+}
+

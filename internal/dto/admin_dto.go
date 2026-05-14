@@ -5,7 +5,6 @@ type DashboardStatsResponse struct {
 	TotalUsers       StatItem `json:"total_users"`
 	TotalGames       StatItem `json:"total_games"`
 	TotalReviews     StatItem `json:"total_reviews"`
-	ActivityChart    []ChartItem `json:"activity_chart"`
 	TopGames         []TopGameItem `json:"top_games"`
 	RecentActivities []ActivitySummary `json:"recent_activities"`
 	GenreStats       []GenreStatItem `json:"genre_stats"`
@@ -21,6 +20,7 @@ type ChartItem struct {
 	Name    string `json:"name"`
 	Logs    int    `json:"logs"`
 	Reviews int    `json:"reviews"`
+	Ratings int    `json:"ratings"`
 }
 
 type TopGameItem struct {

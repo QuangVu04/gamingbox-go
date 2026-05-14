@@ -98,3 +98,14 @@ func (h *AdminHandler) GetDashboardStats(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, stats)
 }
+
+func (h *AdminHandler) GetActivityChart(c *gin.Context) {
+	timeframe := c.DefaultQuery("timeframe", "7 Ngày")
+	chartData, err := h.adminService.GetActivityChart(timeframe)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, chartData)
+}

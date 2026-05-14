@@ -130,6 +130,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	admin.Use(middleware.Authenticate(), middleware.RequireAdmin())
 	{
 		admin.GET("/stats", adminHandler.GetDashboardStats)
+		admin.GET("/chart", adminHandler.GetActivityChart)
 		users := admin.Group("/users")
 		{
 			users.GET("/:id", adminHandler.GetUserDetail)

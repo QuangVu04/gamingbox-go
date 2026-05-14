@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"time"
 	"vault/be/internal/models"
 
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ type RatingRepository interface {
 	GetGameStats(gameID uint) (avgRating float64, totalRatings int, err error)
 	// UpdateGameRating updates the Game's average rating and review count
 	UpdateGameRating(gameID uint, avgRating float64, totalRatings int) error
+	GetDailyCounts(since time.Time) (map[string]int, error)
 }
 
 type ratingRepository struct {
@@ -97,3 +99,26 @@ func (r *ratingRepository) UpdateGameRating(gameID uint, avgRating float64, tota
 			"review_count": totalRatings,
 		}).Error
 }
+
+func (r *ratingRepository) GetDailyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Date  string
+		Count int
+	}
+
+	err := r.db.Model(&models.Rating{}).
+		Select("DATE_FORMAT(created_at, '%Y-%m-%d') as date, COUNT(*) as count").
+		Where("created_at >= ?", since).
+		Group("date").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Date] = res.Count
+	}
+	return counts, nil
+}

@@ -63,7 +63,7 @@ func (a *App) Run() {
 	reviewService := services.NewReviewService(reviewRepo, userRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
 	likeService := services.NewLikeService(likeRepo, a.RDB, notificationService, reviewRepo, listRepo)
-	adminService := services.NewAdminService(userRepo, gameRepo, reviewRepo, gameLogRepo, activityLogRepo)
+	adminService := services.NewAdminService(userRepo, gameRepo, reviewRepo, gameLogRepo, activityLogRepo, ratingRepo)
 
 
 	authH := handlers.NewAuthHandler(authService)
