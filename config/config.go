@@ -3,9 +3,7 @@ package config
 import (
 	"log"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -20,6 +18,8 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	RedisHost string
 
 	JWTSecret         string
 	JWTAccessExpires  time.Duration
@@ -36,43 +36,21 @@ type Config struct {
 	SMTPPort     string
 	SMTPUser     string
 	SMTPPassword string
+
+	GoogleClientID      string
+	GoogleClientSecret  string
+	GoogleRedirectURI   string
+	FacebookAppID       string
+	FacebookAppSecret   string
+	FacebookRedirectURI string
 }
 
 var App *Config
 
 func Load() {
-	cwd, err := os.Getwd()
+	err := godotenv.Load()
 	if err != nil {
-		log.Printf("Config Load: unable to get current working directory: %v", err)
-	}
-
-	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Join(filepath.Dir(b), "..")
-
-	envPaths := []string{
-		filepath.Join(cwd, ".env"),
-		filepath.Join(basepath, ".env"),
-	}
-
-	loaded := false
-	for _, path := range envPaths {
-		if path == "" {
-			continue
-		}
-
-		if err := godotenv.Load(path); err != nil {
-			if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file") {
-				continue
-			}
-			log.Printf("Config Load: failed to load .env from %s: %v", path, err)
-			break
-		}
-		loaded = true
-		break
-	}
-
-	if !loaded {
-		log.Printf("Config Load: no .env file loaded, checked paths: %v", envPaths)
+		log.Println("Không tìm thấy file .env, sử dụng biến môi trường hệ thống")
 	}
 
 	accessExpires, err := time.ParseDuration(getEnv("JWT_ACCESS_EXPIRES", "15m"))
@@ -98,7 +76,9 @@ func Load() {
 		DBPort:     getEnv("DB_PORT", "3306"),
 		DBUser:     getEnv("DB_USER", "root"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
-		DBName:     getEnv("DB_NAME", "gamelog"),
+		DBName:     getEnv("DB_NAME", "gamingbox"),
+
+		RedisHost: getEnv("REDIS_HOST", "localhost:6379"),
 
 		JWTSecret:         getEnv("JWT_SECRET", "fallback-secret"),
 		JWTAccessExpires:  accessExpires,
@@ -114,11 +94,26 @@ func Load() {
 		SMTPPort:     getEnv("SMTP_PORT", "587"),
 		SMTPUser:     getEnv("SMTP_USER", "example@gmail.com"),
 		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+
+		GoogleClientID:      getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleClientSecret:  getEnv("GOOGLE_CLIENT_SECRET", ""),
+		GoogleRedirectURI:   getEnv("GOOGLE_REDIRECT_URI", ""),
+		FacebookAppID:       getEnv("FACEBOOK_CLIENT_ID", ""),
+		FacebookAppSecret:   getEnv("FACEBOOK_CLIENT_SECRET", ""),
+		FacebookRedirectURI: getEnv("FACEBOOK_REDIRECT_URI", ""),
 	}
 }
 
 func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
+func getEnvAsInt(key string, fallback int) int {
+	valueStr := getEnv(key, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
 		return value
 	}
 	return fallback

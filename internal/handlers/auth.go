@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"vault/be/internal/dto"
-	"vault/be/internal/middleware"
 	"vault/be/internal/services"
 	"vault/be/pkg/utils"
 
@@ -45,9 +46,9 @@ type logoutRequest struct {
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body registerRequest true "Thông tin đăng ký"
-// @Success      201  {object}  dto.SuccessResponse[dto.AuthResponse]
-// @Failure      400  {object}  dto.ErrorResponse
+// @Param        request  body      registerRequest  true  "Thông tin đăng ký"
+// @Success      201      {object}  dto.AuthResponse
+// @Failure      400      {object}  dto.ErrorResponse
 // @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
@@ -61,6 +62,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Username: req.Username,
 		Password: req.Password,
 	})
+
 	if err != nil {
 		handleAuthServiceError(c, err)
 		return
@@ -71,13 +73,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // Login godoc
 // @Summary      Đăng nhập
-// @Description  Đăng nhập bằng email và mật khẩu để nhận token
+// @Description  Đăng nhập bằng email và mật khẩu để lấy access token
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body loginRequest true "Thông tin đăng nhập"
-// @Success      200  {object}  dto.SuccessResponse[dto.AuthResponse]
-// @Failure      400  {object}  dto.ErrorResponse
+// @Param        request  body      loginRequest  true  "Thông tin đăng nhập"
+// @Success      200      {object}  dto.AuthResponse
+// @Failure      401      {object}  dto.ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
@@ -91,6 +93,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Password:   req.Password,
 		RememberMe: req.RememberMe,
 	})
+
 	if err != nil {
 		handleAuthServiceError(c, err)
 		return
@@ -99,45 +102,20 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	utils.Success(c, http.StatusOK, result)
 }
 
-// Me godoc
-// @Summary      Lấy thông tin cá nhân
-// @Description  Lấy thông tin của người dùng đang đăng nhập
-// @Tags         Authentication
-// @Security     BearerAuth
-// @Produce      json
-// @Success      200  {object}  dto.SuccessResponse[dto.UserProfileResponse]
-// @Failure      401  {object}  dto.ErrorResponse
-// @Router       /auth/me [get]
-func (h *AuthHandler) Me(c *gin.Context) {
-	userID, ok := middleware.GetCurrentUserID(c)
-	if !ok {
-		utils.Unauthorized(c, "Unauthorized")
-		return
-	}
-
-	user, err := h.authService.GetMe(userID)
-	if err != nil {
-		handleAuthServiceError(c, err)
-		return
-	}
-
-	utils.Success(c, http.StatusOK, user)
-}
-
 // RefreshToken godoc
 // @Summary      Làm mới token
-// @Description  Lấy access token mới bằng refresh token
+// @Description  Sử dụng refresh token để lấy access token mới
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body refreshRequest true "Refresh Token"
-// @Success      200  {object}  dto.SuccessResponse[dto.AuthResponse]
-// @Failure      400  {object}  dto.ErrorResponse
+// @Param        request  body      refreshRequest  true  "Refresh token"
+// @Success      200      {object}  dto.AuthResponse
+// @Failure      401      {object}  dto.ErrorResponse
 // @Router       /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, "thiếu refresh_token")
+		utils.Error(c, http.StatusBadRequest, "BAD_REQUEST", "Refresh token là bắt buộc")
 		return
 	}
 
@@ -152,36 +130,48 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 // Logout godoc
 // @Summary      Đăng xuất
-// @Description  Xóa refresh token để đăng xuất
+// @Description  Hủy bỏ refresh token hiện tại
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body logoutRequest true "Refresh Token"
-// @Success      200  {object}  dto.MessageResponse
+// @Param        request  body      logoutRequest  true  "Refresh token để hủy"
+// @Success      200      {object}  dto.MessageResponse
 // @Router       /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req logoutRequest
 	_ = c.ShouldBindJSON(&req)
+
 	h.authService.Logout(req.RefreshToken)
-	c.JSON(http.StatusOK, dto.MessageResponse{
+	utils.Success(c, http.StatusOK, dto.MessageResponse{
 		Status:  "success",
-		Message: "đăng xuất thành công",
+		Message: "Đăng xuất thành công",
 	})
 }
 
-// ForgotPassword godoc
-// @Summary      Quên mật khẩu
-// @Description  Gửi yêu cầu khôi phục mật khẩu. (Luôn trả về thành công để bảo mật)
+// Me godoc
+// @Summary      Lấy thông tin bản thân
+// @Description  Lấy thông tin chi tiết của người dùng đang đăng nhập
 // @Tags         Authentication
-// @Accept       json
 // @Produce      json
-// @Param        request body dto.ForgotPasswordRequest true "Email đăng ký"
-// @Success      200  {object}  dto.MessageResponse
-// @Router       /auth/forgot-password [post]
+// @Security     BearerAuth
+// @Success      200      {object}  dto.UserResponse
+// @Failure      401      {object}  dto.ErrorResponse
+// @Router       /auth/me [get]
+func (h *AuthHandler) Me(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	result, err := h.authService.GetMe(userID)
+	if err != nil {
+		handleAuthServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, result)
+}
+
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req dto.ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, "Email không hợp lệ")
+		utils.FormatValidationError(c, err)
 		return
 	}
 
@@ -193,50 +183,30 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.MessageResponse{
 		Status:  "success",
-		Message: "Nếu email tồn tại, một liên kết khôi phục đã được gửi đi.",
+		Message: "Nếu email tồn tại, mã xác nhận sẽ được gửi tới bạn",
 	})
 }
 
-// VerifyCode godoc
-// @Summary      Xác thực mã khôi phục
-// @Description  Xác thực mã 6 số gửi qua email để lấy token đổi mật khẩu
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.VerifyCodeRequest true "Mã xác thực"
-// @Success      200  {object}  dto.SuccessResponse[dto.VerifyCodeResponse]
-// @Failure      400  {object}  dto.ErrorResponse
-// @Router       /auth/verify-code [post]
 func (h *AuthHandler) VerifyCode(c *gin.Context) {
 	var req dto.VerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		utils.FormatValidationError(c, err)
 		return
 	}
 
-	res, err := h.authService.VerifyCode(req)
+	result, err := h.authService.VerifyCode(req)
 	if err != nil {
 		handleAuthServiceError(c, err)
 		return
 	}
 
-	utils.Success(c, http.StatusOK, res)
+	utils.Success(c, http.StatusOK, result)
 }
 
-// ResetPassword godoc
-// @Summary      Đặt lại mật khẩu
-// @Description  Đặt lại mật khẩu bằng token được cấp từ bước xác thực
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.ResetPasswordRequest true "Thông tin đổi mật khẩu"
-// @Success      200  {object}  dto.MessageResponse
-// @Failure      400  {object}  dto.ErrorResponse
-// @Router       /auth/reset-password [post]
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		utils.FormatValidationError(c, err)
 		return
 	}
 
@@ -250,4 +220,52 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		Status:  "success",
 		Message: "Đổi mật khẩu thành công",
 	})
+}
+
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
+	url := utils.GoogleOauthConfig.AuthCodeURL("state")
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func (h *AuthHandler) GoogleCallback(c *gin.Context) {
+	code := c.Query("code")
+	res, err := h.authService.HandleGoogleLogin(code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	handleSocialCallbackSuccess(c, res)
+}
+
+func (h *AuthHandler) FacebookLogin(c *gin.Context) {
+	url := utils.FacebookOauthConfig.AuthCodeURL("state")
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func (h *AuthHandler) FacebookCallback(c *gin.Context) {
+	code := c.Query("code")
+	res, err := h.authService.HandleFacebookLogin(code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	handleSocialCallbackSuccess(c, res)
+}
+
+func handleSocialCallbackSuccess(c *gin.Context, res *dto.AuthResponse) {
+	jsonRes, _ := json.Marshal(res)
+	html := fmt.Sprintf(`
+		<!DOCTYPE html>
+		<html>
+		<head><title>Authentication Successful</title></head>
+		<body>
+			<script>
+				window.opener.postMessage(%s, "*");
+				window.close();
+			</script>
+			<p>Đăng nhập thành công! Vui lòng chờ trong giây lát...</p>
+		</body>
+		</html>
+	`, string(jsonRes))
+	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 }

@@ -171,7 +171,7 @@ func seedRandomUsers(db *gorm.DB, count int) {
 		user := models.User{
 			Email:         faker.Email(),
 			Username:      faker.Username(),
-			Password:      password,
+			Password:      &password,
 			Role:          models.RoleUser,
 			FollowerCount: utils.RandomInt(0, 5000), // Phục vụ việc sort member_popularity
 		}

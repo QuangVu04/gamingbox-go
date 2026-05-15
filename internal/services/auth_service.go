@@ -34,6 +34,8 @@ type AuthService interface {
     ForgotPassword(email string) error
     VerifyCode(req dto.VerifyCodeRequest) (*dto.VerifyCodeResponse, error)
     ResetPassword(req dto.ResetPasswordRequest) error
+    HandleGoogleLogin(code string) (*dto.AuthResponse, error)
+    HandleFacebookLogin(code string) (*dto.AuthResponse, error)
 }
 
 type authService struct {
@@ -75,7 +77,7 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
 
     user := &models.User{
         Email:        input.Email,
-        Password: 	  hashedPassword,
+        Password: 	  &hashedPassword,
         Username:     input.Username,
         Role:         models.RoleUser,
     }
@@ -96,7 +98,7 @@ func (s *authService) Login(input dto.LoginInput) (*dto.AuthResponse, error) {
         return nil, dto.NewServiceError("SERVER_ERROR", "Lỗi server")
     }
 
-    if !utils.CheckPassword(input.Password, user.Password) {
+    if user.Password == nil || !utils.CheckPassword(input.Password, *user.Password) {
         return nil, dto.NewServiceError("INVALID_CREDENTIALS", "email hoặc mật khẩu không đúng")
     }
 
@@ -259,7 +261,7 @@ func (s *authService) ResetPassword(req dto.ResetPasswordRequest) error {
     }
 
     // Update password
-    user.Password = hashedPassword
+    user.Password = &hashedPassword
     if err := s.userRepo.Update(user); err != nil {
         return dto.NewServiceError("SERVER_ERROR", "Không thể cập nhật mật khẩu")
     }
@@ -319,4 +321,79 @@ func GetSteamProfile(steamID64 string) (*response.SteamPlayerResponse, error) {
 	}
 
 	return &result, nil
+}
+
+func (s *authService) HandleGoogleLogin(code string) (*dto.AuthResponse, error) {
+	googleUser, err := utils.GetGoogleUserInfo(code)
+	if err != nil {
+		return nil, dto.NewServiceError("GOOGLE_AUTH_FAILED", err.Error())
+	}
+
+	// 1. Tìm theo GoogleID
+	user, err := s.userRepo.FindByField("google_id", googleUser.ID)
+	if err != nil {
+		// 2. Nếu không thấy ID, tìm theo Email
+		user, err = s.userRepo.FindByEmail(googleUser.Email)
+		if err == nil {
+			// Liên kết tài khoản hiện có với GoogleID
+			user.GoogleID = googleUser.ID
+			if user.AvatarURL == nil {
+				user.AvatarURL = &googleUser.Picture
+			}
+			s.userRepo.Update(user)
+		} else {
+			// 3. Tạo mới nếu chưa có email
+			user = &models.User{
+				Email:     googleUser.Email,
+				Username:  googleUser.Name,
+				GoogleID:  googleUser.ID,
+				AvatarURL: &googleUser.Picture,
+				Role:      models.RoleUser,
+			}
+			if err := s.userRepo.Create(user); err != nil {
+				return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo tài khoản")
+			}
+		}
+	}
+
+	return s.buildAuthResponse(user, true)
+}
+
+func (s *authService) HandleFacebookLogin(code string) (*dto.AuthResponse, error) {
+	fbUser, err := utils.GetFacebookUserInfo(code)
+	if err != nil {
+		return nil, dto.NewServiceError("FACEBOOK_AUTH_FAILED", err.Error())
+	}
+
+	// 1. Tìm theo FacebookID
+	user, err := s.userRepo.FindByField("facebook_id", fbUser.ID)
+	if err != nil {
+		// 2. Tìm theo Email (Facebook có thể không trả về email nếu user ko cấp quyền)
+		if fbUser.Email != "" {
+			user, err = s.userRepo.FindByEmail(fbUser.Email)
+			if err == nil {
+				user.FacebookID = fbUser.ID
+				if user.AvatarURL == nil {
+					user.AvatarURL = &fbUser.Picture.Data.URL
+				}
+				s.userRepo.Update(user)
+			}
+		}
+		
+		if user == nil {
+			// 3. Tạo mới
+			user = &models.User{
+				Email:      fbUser.Email,
+				Username:   fbUser.Name,
+				FacebookID: fbUser.ID,
+				AvatarURL:  &fbUser.Picture.Data.URL,
+				Role:       models.RoleUser,
+			}
+			if err := s.userRepo.Create(user); err != nil {
+				return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo tài khoản")
+			}
+		}
+	}
+
+	return s.buildAuthResponse(user, true)
 }

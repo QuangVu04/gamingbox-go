@@ -31,6 +31,10 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	{
 		auth.GET("/steam", steamHandler.LoginHandle)
 		auth.GET("/steam/callback", steamHandler.CallbackHandle)
+		auth.GET("/google", authHandler.GoogleLogin)
+		auth.GET("/google/callback", authHandler.GoogleCallback)
+		auth.GET("/facebook", authHandler.FacebookLogin)
+		auth.GET("/facebook/callback", authHandler.FacebookCallback)
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/refresh", authHandler.RefreshToken)

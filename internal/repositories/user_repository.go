@@ -19,6 +19,7 @@ type UserRepository interface {
     GetFollowers(userID uint, offset, limit int) ([]models.User, int64, error)
     Count() (int64, error)
     CountRecent(since time.Time) (int64, error)
+    FindByField(field string, value interface{}) (*models.User, error)
 }
 
 type userRepository struct {
@@ -167,4 +168,12 @@ func (r *userRepository) CountRecent(since time.Time) (int64, error) {
 	var count int64
 	err := r.db.Model(&models.User{}).Where("created_at >= ?", since).Count(&count).Error
 	return count, err
+}
+
+func (r *userRepository) FindByField(field string, value interface{}) (*models.User, error) {
+    var user models.User
+    if err := r.db.Where(field+" = ?", value).First(&user).Error; err != nil {
+        return nil, err
+    }
+    return &user, nil
 }

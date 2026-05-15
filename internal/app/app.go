@@ -11,6 +11,7 @@ import (
 	"vault/be/internal/seeders"
 	"vault/be/internal/services"
 	"vault/be/internal/workers"
+	"vault/be/pkg/utils"
 	"context"
 
 	"github.com/redis/go-redis/v9"
@@ -25,6 +26,7 @@ type App struct {
 func New() *App {
 	// 1. Load config FIRST
 	config.Load()
+	utils.InitOauth()
 
 	// 2. Connect to Database SECOND
 	db := database.Connect()
