@@ -13,6 +13,7 @@ type GameLogRepository interface {
 	Count() (int64, error)
 	CountRecent(since time.Time) (int64, error)
 	GetDailyCounts(since time.Time) (map[string]int, error)
+	GetHourlyCounts(since time.Time) (map[string]int, error)
 }
 
 type gameLogRepository struct {
@@ -70,6 +71,29 @@ func (r *gameLogRepository) GetDailyCounts(since time.Time) (map[string]int, err
 	counts := make(map[string]int)
 	for _, res := range results {
 		counts[res.Date] = res.Count
+	}
+	return counts, nil
+}
+
+func (r *gameLogRepository) GetHourlyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Hour  string
+		Count int
+	}
+
+	err := r.db.Model(&models.GameLog{}).
+		Select("DATE_FORMAT(logged_at, '%H') as hour, COUNT(*) as count").
+		Where("logged_at >= ?", since).
+		Group("hour").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Hour] = res.Count
 	}
 	return counts, nil
 }

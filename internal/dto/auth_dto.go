@@ -9,6 +9,7 @@ type RegisterInput struct {
 type LoginInput struct {
     Email      string
     Password   string
+    RememberMe bool
 }
 
 type RefreshTokenInput struct {

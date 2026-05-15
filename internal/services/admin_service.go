@@ -144,6 +144,45 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 
 func (s *adminService) GetActivityChart(timeframe string) ([]dto.ChartItem, error) {
 	now := time.Now()
+	chartData := make([]dto.ChartItem, 0)
+
+	if timeframe == "Hôm nay" {
+		since := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		logHourly, err1 := s.gameLogRepo.GetHourlyCounts(since)
+		reviewHourly, err2 := s.reviewRepo.GetHourlyCounts(since)
+		ratingHourly, err3 := s.ratingRepo.GetHourlyCounts(since)
+
+		// Debug logging
+		fmt.Printf("DEBUG: ActivityChart Today Since: %v\n", since)
+		fmt.Printf("DEBUG: Log Counts: %v (err: %v)\n", logHourly, err1)
+		fmt.Printf("DEBUG: Review Counts: %v (err: %v)\n", reviewHourly, err2)
+		fmt.Printf("DEBUG: Rating Counts: %v (err: %v)\n", ratingHourly, err3)
+
+		for i := 0; i < 24; i++ {
+			hourStr02 := fmt.Sprintf("%02d", i) // "09"
+			hourStrRaw := fmt.Sprintf("%d", i)   // "9"
+			label := fmt.Sprintf("%02d:00", i)
+
+			// Try both formats just in case
+			logs := logHourly[hourStr02]
+			if logs == 0 { logs = logHourly[hourStrRaw] }
+
+			reviews := reviewHourly[hourStr02]
+			if reviews == 0 { reviews = reviewHourly[hourStrRaw] }
+
+			ratings := ratingHourly[hourStr02]
+			if ratings == 0 { ratings = ratingHourly[hourStrRaw] }
+
+			chartData = append(chartData, dto.ChartItem{
+				Name:    label,
+				Logs:    logs,
+				Reviews: reviews,
+				Ratings: ratings,
+			})
+		}
+		return chartData, nil
+	}
+
 	days := 7
 	if timeframe == "30 Ngày" {
 		days = 30
@@ -155,7 +194,6 @@ func (s *adminService) GetActivityChart(timeframe string) ([]dto.ChartItem, erro
 	ratingDaily, _ := s.ratingRepo.GetDailyCounts(chartSince)
 
 	weekdayNames := []string{"CN", "T2", "T3", "T4", "T5", "T6", "T7"}
-	chartData := make([]dto.ChartItem, 0)
 
 	for i := 0; i < days; i++ {
 		date := chartSince.AddDate(0, 0, i)

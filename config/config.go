@@ -23,7 +23,8 @@ type Config struct {
 
 	JWTSecret         string
 	JWTAccessExpires  time.Duration
-	JWTRefreshExpires time.Duration
+	JWTRefreshExpires      time.Duration
+	JWTRefreshShortExpires time.Duration
 
 	FrontEndUrl    string
 	ReturnUrl      string
@@ -84,6 +85,11 @@ func Load() {
 		refreshExpires = 30 * 24 * time.Hour
 	}
 
+	refreshShortExpires, err := time.ParseDuration(getEnv("JWT_REFRESH_SHORT_EXPIRES", "24h"))
+	if err != nil {
+		refreshShortExpires = 24 * time.Hour
+	}
+
 	App = &Config{
 		Port: getEnv("PORT", "8080"),
 		Env:  getEnv("ENV", "development"),
@@ -97,6 +103,7 @@ func Load() {
 		JWTSecret:         getEnv("JWT_SECRET", "fallback-secret"),
 		JWTAccessExpires:  accessExpires,
 		JWTRefreshExpires: refreshExpires,
+		JWTRefreshShortExpires: refreshShortExpires,
 		FrontEndUrl:       getEnv("FRONTEND_URL", "http://localhost:5173"),
 		ReturnUrl:         getEnv("RETURN_URL", "http://localhost:8080/api/v1/auth/steam/callback"),
 		SteamOpenIdUrl:    getEnv("STEAM_OPEN_ID_URL", "https://steamcommunity.com/openid/login"),

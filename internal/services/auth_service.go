@@ -84,7 +84,7 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
         return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo tài khoản")
     }
 
-    return s.buildAuthResponse(user)
+    return s.buildAuthResponse(user, true)
 }
 
 func (s *authService) Login(input dto.LoginInput) (*dto.AuthResponse, error) {
@@ -100,7 +100,7 @@ func (s *authService) Login(input dto.LoginInput) (*dto.AuthResponse, error) {
         return nil, dto.NewServiceError("INVALID_CREDENTIALS", "email hoặc mật khẩu không đúng")
     }
 
-    return s.buildAuthResponse(user)
+    return s.buildAuthResponse(user, input.RememberMe)
 }
 
 func (s *authService) LoginWithSteam(steamID64 string) (*dto.AuthResponse, error) {
@@ -133,7 +133,7 @@ func (s *authService) LoginWithSteam(steamID64 string) (*dto.AuthResponse, error
         }
     }
 
-    res, err := s.buildAuthResponse(user)
+    res, err := s.buildAuthResponse(user, true)
     if err != nil {
         return nil, err
     }
@@ -168,7 +168,7 @@ func (s *authService) RefreshTokens(tokenString string) (*dto.AuthResponse, erro
 
     _ = s.tokenRepo.Revoke(tokenString)
 
-    return s.buildAuthResponse(user)
+    return s.buildAuthResponse(user, true)
 }
 
 func (s *authService) Logout(tokenString string) {
@@ -270,8 +270,13 @@ func (s *authService) ResetPassword(req dto.ResetPasswordRequest) error {
     return nil
 }
 
-func (s *authService) buildAuthResponse(user *models.User) (*dto.AuthResponse, error) {
-    tokens, err := utils.GenerateTokenPair(user.ID, user.Username, string(user.Role))
+func (s *authService) buildAuthResponse(user *models.User, rememberMe bool) (*dto.AuthResponse, error) {
+    refreshExpires := config.App.JWTRefreshShortExpires
+    if rememberMe {
+        refreshExpires = config.App.JWTRefreshExpires
+    }
+
+    tokens, err := utils.GenerateTokenPair(user.ID, user.Username, string(user.Role), refreshExpires)
 
     if err != nil {
         return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo token")
@@ -280,7 +285,7 @@ func (s *authService) buildAuthResponse(user *models.User) (*dto.AuthResponse, e
     rt := &models.RefreshToken{
         UserID:    user.ID,
         Token:     tokens.RefreshToken,
-        ExpiresAt: time.Now().Add(config.App.JWTRefreshExpires),
+        ExpiresAt: time.Now().Add(refreshExpires),
     }
 
     if err := s.tokenRepo.Save(rt); err != nil {

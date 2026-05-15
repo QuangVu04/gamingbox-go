@@ -29,13 +29,13 @@ type TokenPair struct {
     RefreshToken string
 }
 
-func GenerateTokenPair(userID uint, username string, role string) (*TokenPair, error) {
+func GenerateTokenPair(userID uint, username string, role string, refreshExpires time.Duration) (*TokenPair, error) {
     accessToken, err := generateToken(userID, username, role, AccessToken, config.App.JWTAccessExpires)
     if err != nil {
         return nil, err
     }
 
-    refreshToken, err := generateToken(userID, username, role, RefreshToken, config.App.JWTRefreshExpires)
+    refreshToken, err := generateToken(userID, username, role, RefreshToken, refreshExpires)
     if err != nil {
         return nil, err
     }

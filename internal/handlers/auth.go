@@ -26,8 +26,9 @@ type registerRequest struct {
 }
 
 type loginRequest struct {
-	Email    string `json:"email"    binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email      string `json:"email"    binding:"required,email"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe bool   `json:"remember_me"`
 }
 
 type refreshRequest struct {
@@ -51,7 +52,7 @@ type logoutRequest struct {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, err.Error())
+		utils.FormatValidationError(c, err)
 		return
 	}
 
@@ -81,13 +82,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, err.Error())
+		utils.FormatValidationError(c, err)
 		return
 	}
 
 	result, err := h.authService.Login(dto.LoginInput{
 		Email:      req.Email,
 		Password:   req.Password,
+		RememberMe: req.RememberMe,
 	})
 	if err != nil {
 		handleAuthServiceError(c, err)

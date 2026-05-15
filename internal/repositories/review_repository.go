@@ -23,6 +23,7 @@ type ReviewRepository interface {
 	Count() (int64, error)
 	CountRecent(since time.Time) (int64, error)
 	GetDailyCounts(since time.Time) (map[string]int, error)
+	GetHourlyCounts(since time.Time) (map[string]int, error)
 }
 
 type reviewRepository struct {
@@ -209,6 +210,29 @@ func (r *reviewRepository) GetDailyCounts(since time.Time) (map[string]int, erro
 	counts := make(map[string]int)
 	for _, res := range results {
 		counts[res.Date] = res.Count
+	}
+	return counts, nil
+}
+
+func (r *reviewRepository) GetHourlyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Hour  string
+		Count int
+	}
+
+	err := r.db.Model(&models.Review{}).
+		Select("DATE_FORMAT(created_at, '%H') as hour, COUNT(*) as count").
+		Where("created_at >= ?", since).
+		Group("hour").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Hour] = res.Count
 	}
 	return counts, nil
 }

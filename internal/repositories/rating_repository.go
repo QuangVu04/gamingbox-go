@@ -20,6 +20,7 @@ type RatingRepository interface {
 	// UpdateGameRating updates the Game's average rating and review count
 	UpdateGameRating(gameID uint, avgRating float64, totalRatings int) error
 	GetDailyCounts(since time.Time) (map[string]int, error)
+	GetHourlyCounts(since time.Time) (map[string]int, error)
 }
 
 type ratingRepository struct {
@@ -121,4 +122,28 @@ func (r *ratingRepository) GetDailyCounts(since time.Time) (map[string]int, erro
 		counts[res.Date] = res.Count
 	}
 	return counts, nil
-}
+}
+
+func (r *ratingRepository) GetHourlyCounts(since time.Time) (map[string]int, error) {
+	var results []struct {
+		Hour  string
+		Count int
+	}
+
+	err := r.db.Model(&models.Rating{}).
+		Select("DATE_FORMAT(created_at, '%H') as hour, COUNT(*) as count").
+		Where("created_at >= ?", since).
+		Group("hour").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	counts := make(map[string]int)
+	for _, res := range results {
+		counts[res.Hour] = res.Count
+	}
+	return counts, nil
+}
+
