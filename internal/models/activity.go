@@ -57,4 +57,6 @@ type ActivityLog struct {
 	TargetType string
 	Preview    string
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
+
+	User       User   `gorm:"foreignKey:UserID"`
 }

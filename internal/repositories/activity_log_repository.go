@@ -20,7 +20,7 @@ func NewActivityLogRepository(db *gorm.DB) ActivityLogRepository {
 
 func (r *activityLogRepository) GetRecentByUserID(userID uint, limit int) ([]models.ActivityLog, error) {
 	var activities []models.ActivityLog
-	db := r.db.Order("created_at desc").Limit(limit)
+	db := r.db.Preload("User").Order("created_at desc").Limit(limit)
 	if userID != 0 {
 		db = db.Where("user_id = ?", userID)
 	}

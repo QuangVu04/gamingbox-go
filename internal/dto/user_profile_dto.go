@@ -58,12 +58,13 @@ type DiaryEntry struct {
 }
 
 type ActivitySummary struct {
-	ID         uint64    `json:"id"`
-	ActionType string    `json:"action_type"`
-	TargetType string    `json:"target_type"`
-	TargetID   uint      `json:"target_id"`
-	Preview    string    `json:"preview"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID         uint64      `json:"id"`
+	ActionType string      `json:"action_type"`
+	TargetType string      `json:"target_type"`
+	TargetID   uint        `json:"target_id"`
+	Preview    string      `json:"preview"`
+	CreatedAt  time.Time   `json:"created_at"`
+	User       UserSummary `json:"user"`
 }
 
 type UserStatsResponse struct {

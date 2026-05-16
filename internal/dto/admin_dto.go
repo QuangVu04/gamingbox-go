@@ -27,9 +27,10 @@ type TopGameItem struct {
 	ID      uint    `json:"id"`
 	Title   string  `json:"title"`
 	Genre   string  `json:"genre"`
-	Members int     `json:"members"`
+	Reviews int     `json:"reviews"`
+	Ratings int     `json:"ratings"`
 	Rating  float64 `json:"rating"`
-	Status  string  `json:"status"`
+	Image   string  `json:"image"`
 }
 
 type GenreStatItem struct {

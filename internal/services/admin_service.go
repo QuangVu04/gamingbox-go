@@ -73,7 +73,7 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 	}
 
 	// 1. Genre Stats
-	rawGenreStats, _ := s.gameRepo.GetGenreStats()
+	rawGenreStats, _ := s.gameRepo.GetGenreStats(since)
 	colors := []string{"#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#ef4444"}
 	genreStats := make([]dto.GenreStatItem, 0)
 	idx := 0
@@ -95,23 +95,24 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 	trendingGames, _, _ := s.gameRepo.GetTrendingGames(1, 5)
 	topGames := make([]dto.TopGameItem, 0)
 	for _, tg := range trendingGames {
-		status := "Phổ biến"
-		if tg.TrendingScore > 20 {
-			status = "Đang tăng"
-		}
-		
 		genreName := "Đang cập nhật"
 		if len(tg.Game.Genres) > 0 {
 			genreName = tg.Game.Genres[0].Name
+		}
+
+		imageURL := ""
+		if len(tg.Game.Images) > 0 {
+			imageURL = tg.Game.Images[0].OgURL
 		}
 
 		topGames = append(topGames, dto.TopGameItem{
 			ID:      tg.Game.ID,
 			Title:   tg.Game.Title,
 			Genre:   genreName,
-			Members: tg.Game.ReviewCount*12 + 50, // Approximation for demo
+			Reviews: tg.ReviewCount7d,
+			Ratings: tg.RatingCount7d,
 			Rating:  float64(int(tg.Game.AvgRating*10)) / 10,
-			Status:  status,
+			Image:   imageURL,
 		})
 	}
 
