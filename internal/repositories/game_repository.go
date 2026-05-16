@@ -18,6 +18,7 @@ type GameRepository interface {
 	Count() (int64, error)
 	CountRecent(since time.Time) (int64, error)
 	GetGenreStats(since time.Time) (map[string]int, error)
+	SearchAdminGames(search, category, platform, minRating, startDate, endDate, sort string, page, limit int) ([]models.Game, int64, error)
 }
 
 type gameRepository struct {
@@ -150,6 +151,73 @@ func (r *gameRepository) Search(query string, page, limit int) ([]models.Game, i
 	}
 
 	err = db.Limit(limit).Offset(offset).Find(&games).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return games, total, nil
+}
+
+func (r *gameRepository) SearchAdminGames(search, category, platform, minRating, startDate, endDate, sort string, page, limit int) ([]models.Game, int64, error) {
+	var games []models.Game
+	var total int64
+	offset := (page - 1) * limit
+
+	db := r.db.Model(&models.Game{}).
+		Preload("Studio").
+		Preload("Genres").
+		Preload("Platforms").
+		Preload("Images", "img_type = ?", "header")
+
+	if search != "" {
+		db = db.Joins("LEFT JOIN studios ON studios.id = games.studio_id").
+			Where("games.title LIKE ? OR studios.name LIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	if category != "" && category != "All" {
+		db = db.Joins("JOIN game_genres ON game_genres.game_id = games.id").
+			Joins("JOIN genres ON genres.id = game_genres.genre_id").
+			Where("genres.name = ?", category)
+	}
+
+	if platform != "" && platform != "All" {
+		db = db.Joins("JOIN game_platforms ON game_platforms.game_id = games.id").
+			Joins("JOIN platforms ON platforms.id = game_platforms.platform_id").
+			Where("platforms.name = ?", platform)
+	}
+
+	if minRating != "" && minRating != "All" {
+		var minVal float64
+		fmt.Sscanf(minRating, "%f", &minVal)
+		db = db.Where("games.avg_rating >= ?", minVal)
+	}
+
+	if startDate != "" {
+		db = db.Where("games.release_date >= ?", startDate)
+	}
+	if endDate != "" {
+		db = db.Where("games.release_date <= ?", endDate)
+	}
+
+	err := db.Session(&gorm.Session{}).Distinct("games.id").Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	orderClause := "games.release_date DESC"
+	if sort == "earliest" {
+		orderClause = "games.release_date ASC"
+	} else if sort == "highest_rating" {
+		orderClause = "games.avg_rating DESC"
+	} else if sort == "lowest_rating" {
+		orderClause = "games.avg_rating ASC"
+	} else if sort == "popular_week" {
+		orderClause = "games.review_count DESC"
+	} else if sort == "popular_all_time" {
+		orderClause = "games.review_count DESC"
+	}
+
+	err = db.Select("games.*").Group("games.id").Order(orderClause).Limit(limit).Offset(offset).Find(&games).Error
 	if err != nil {
 		return nil, 0, err
 	}

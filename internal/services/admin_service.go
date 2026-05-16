@@ -11,7 +11,7 @@ import (
 type AdminService interface {
 	GetDashboardStats(timeframe string) (*dto.DashboardStatsResponse, error)
 	GetActivityChart(timeframe string) ([]dto.ChartItem, error)
-	GetAdminGames(page, limit int) ([]dto.GameAdminResponse, int64, error)
+	GetAdminGames(page, limit int, search, category, platform, minRating, startDate, endDate, sort string) ([]dto.GameAdminResponse, int64, error)
 }
 
 type adminService struct {
@@ -217,8 +217,8 @@ func (s *adminService) GetActivityChart(timeframe string) ([]dto.ChartItem, erro
 	return chartData, nil
 }
 
-func (s *adminService) GetAdminGames(page, limit int) ([]dto.GameAdminResponse, int64, error) {
-	games, total, err := s.gameRepo.Search("", page, limit)
+func (s *adminService) GetAdminGames(page, limit int, search, category, platform, minRating, startDate, endDate, sort string) ([]dto.GameAdminResponse, int64, error) {
+	games, total, err := s.gameRepo.SearchAdminGames(search, category, platform, minRating, startDate, endDate, sort, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}

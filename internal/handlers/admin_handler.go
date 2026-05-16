@@ -114,7 +114,15 @@ func (h *AdminHandler) GetGames(c *gin.Context) {
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
 	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
 
-	games, total, err := h.adminService.GetAdminGames(page, limit)
+	search := c.Query("search")
+	category := c.Query("category")
+	platform := c.Query("platform")
+	minRating := c.Query("min_rating")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	sort := c.Query("sort")
+
+	games, total, err := h.adminService.GetAdminGames(page, limit, search, category, platform, minRating, startDate, endDate, sort)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
 		return
