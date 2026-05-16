@@ -109,3 +109,24 @@ func (h *AdminHandler) GetActivityChart(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, chartData)
 }
+
+func (h *AdminHandler) GetGames(c *gin.Context) {
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	games, total, err := h.adminService.GetAdminGames(page, limit)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"pagination": gin.H{
+			"total_records": total,
+			"current_page":  page,
+			"limit":         limit,
+		},
+		"data": games,
+	})
+}

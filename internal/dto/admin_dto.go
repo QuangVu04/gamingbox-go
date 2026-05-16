@@ -38,3 +38,15 @@ type GenreStatItem struct {
 	Value int    `json:"value"`
 	Color string `json:"color"`
 }
+
+type GameAdminResponse struct {
+	ID          uint      `json:"id"`
+	Title       string    `json:"title"`
+	Studio      string    `json:"studio"`
+	Genres      []string  `json:"genres"`
+	Platforms   []string  `json:"platforms"`
+	Rating      float64   `json:"rating"`
+	Reviews     int       `json:"reviews"`
+	ReleaseDate string    `json:"releaseDate"`
+	Image       string    `json:"image"`
+}

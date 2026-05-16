@@ -11,6 +11,7 @@ import (
 type AdminService interface {
 	GetDashboardStats(timeframe string) (*dto.DashboardStatsResponse, error)
 	GetActivityChart(timeframe string) ([]dto.ChartItem, error)
+	GetAdminGames(page, limit int) ([]dto.GameAdminResponse, int64, error)
 }
 
 type adminService struct {
@@ -214,5 +215,51 @@ func (s *adminService) GetActivityChart(timeframe string) ([]dto.ChartItem, erro
 	}
 
 	return chartData, nil
+}
+
+func (s *adminService) GetAdminGames(page, limit int) ([]dto.GameAdminResponse, int64, error) {
+	games, total, err := s.gameRepo.Search("", page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]dto.GameAdminResponse, 0, len(games))
+	for _, g := range games {
+		var studioName string
+		if g.Studio.ID != 0 {
+			studioName = g.Studio.Name
+		} else {
+			studioName = "Unknown Studio"
+		}
+
+		genres := make([]string, 0, len(g.Genres))
+		for _, gen := range g.Genres {
+			genres = append(genres, gen.Name)
+		}
+
+		platforms := make([]string, 0, len(g.Platforms))
+		for _, plat := range g.Platforms {
+			platforms = append(platforms, plat.Name)
+		}
+
+		var img string
+		if len(g.Images) > 0 {
+			img = g.Images[0].OgURL
+		}
+
+		result = append(result, dto.GameAdminResponse{
+			ID:          g.ID,
+			Title:       g.Title,
+			Studio:      studioName,
+			Genres:      genres,
+			Platforms:   platforms,
+			Rating:      g.AvgRating,
+			Reviews:     g.ReviewCount,
+			ReleaseDate: g.ReleaseDate.Format("2006-01-02"),
+			Image:       img,
+		})
+	}
+
+	return result, total, nil
 }
 
