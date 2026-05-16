@@ -12,6 +12,8 @@ type AdminService interface {
 	GetDashboardStats(timeframe string) (*dto.DashboardStatsResponse, error)
 	GetActivityChart(timeframe string) ([]dto.ChartItem, error)
 	GetAdminGames(page, limit int, search, category, platform, minRating, startDate, endDate, sort string) ([]dto.GameAdminResponse, int64, error)
+	GetAdminUsers(page, limit int, search, role, sort string) ([]dto.UserAdminResponse, int64, error)
+	DeleteUser(id uint) error
 }
 
 type adminService struct {
@@ -261,5 +263,63 @@ func (s *adminService) GetAdminGames(page, limit int, search, category, platform
 	}
 
 	return result, total, nil
+}
+
+func (s *adminService) GetAdminUsers(page, limit int, search, role, sort string) ([]dto.UserAdminResponse, int64, error) {
+	users, total, err := s.userRepo.GetAdminUsers(page, limit, search, role, sort)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]dto.UserAdminResponse, 0, len(users))
+	for _, u := range users {
+		roleStr := "User"
+		if u.Role == "admin" {
+			roleStr = "Super Admin"
+		} else if u.Role == "influencer" {
+			roleStr = "Moderator"
+		}
+
+		statusStr := "Active"
+		if u.Status == "banned" {
+			statusStr = "Banned"
+		}
+
+		// Calculate mock/derived likes if needed
+		likesCount := u.FollowerCount * 15
+		likesStr := fmt.Sprintf("%d", likesCount)
+		if likesCount >= 1000 {
+			likesStr = fmt.Sprintf("%.1fk", float64(likesCount)/1000.0)
+		}
+
+		var avatar string
+		if u.AvatarURL != nil {
+			avatar = *u.AvatarURL
+		}
+
+		result = append(result, dto.UserAdminResponse{
+			ID:        u.ID,
+			Name:      u.Username,
+			Email:     u.Email,
+			AvatarURL: avatar,
+			Role:      roleStr,
+			Status:    statusStr,
+			JoinDate:  u.CreatedAt.Format("02/01/2006"),
+			Influence: dto.InfluenceDTO{
+				Followers: u.FollowerCount,
+				Likes:     likesStr,
+			},
+			Contributions: dto.ContributionsDTO{
+				Logs:    u.GameLogsCount,
+				Reviews: u.ReviewCount,
+			},
+		})
+	}
+
+	return result, total, nil
+}
+
+func (s *adminService) DeleteUser(id uint) error {
+	return s.userRepo.Delete(id)
 }
 

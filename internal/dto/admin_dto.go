@@ -50,3 +50,25 @@ type GameAdminResponse struct {
 	ReleaseDate string    `json:"releaseDate"`
 	Image       string    `json:"image"`
 }
+
+type UserAdminResponse struct {
+	ID            uint             `json:"id"`
+	Name          string           `json:"name"`
+	Email         string           `json:"email"`
+	AvatarURL     string           `json:"avatarUrl"`
+	Role          string           `json:"role"`
+	Status        string           `json:"status"`
+	JoinDate      string           `json:"joinDate"`
+	Influence     InfluenceDTO     `json:"influence"`
+	Contributions ContributionsDTO `json:"contributions"`
+}
+
+type InfluenceDTO struct {
+	Followers int    `json:"followers"`
+	Likes     string `json:"likes"`
+}
+
+type ContributionsDTO struct {
+	Logs    int `json:"logs"`
+	Reviews int `json:"reviews"`
+}

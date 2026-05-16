@@ -138,9 +138,11 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		admin.GET("/games", adminHandler.GetGames)
 		users := admin.Group("/users")
 		{
+			users.GET("", adminHandler.GetUsers)
 			users.GET("/:id", adminHandler.GetUserDetail)
 			users.PATCH("/:id/status", adminHandler.UpdateStatus)
 			users.PATCH("/:id/role", adminHandler.UpdateRole)
+			users.DELETE("/:id", adminHandler.DeleteUser)
 		}
 	}
 

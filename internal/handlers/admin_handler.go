@@ -138,3 +138,44 @@ func (h *AdminHandler) GetGames(c *gin.Context) {
 		"data": games,
 	})
 }
+
+func (h *AdminHandler) GetUsers(c *gin.Context) {
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	search := c.Query("search")
+	role := c.Query("role")
+	sort := c.Query("sort")
+
+	users, total, err := h.adminService.GetAdminUsers(page, limit, search, role, sort)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"pagination": gin.H{
+			"total_records": total,
+			"current_page":  page,
+			"limit":         limit,
+		},
+		"data": users,
+	})
+}
+
+func (h *AdminHandler) DeleteUser(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+
+	if err := h.adminService.DeleteUser(uint(userID)); err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"message": "Xóa người dùng thành công"})
+}
