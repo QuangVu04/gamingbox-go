@@ -8,6 +8,9 @@ import (
 
 type GameLogRepository interface {
 	GetByUserID(userID uint, limit int) ([]models.GameLog, error)
+	GetBacklogByUserID(userID uint, limit int) ([]models.GameLog, error)
+	GetByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error)
+	GetBacklogByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error)
 	LogGame(log *models.GameLog) error
 	RemoveLog(userID, gameID uint) error
 	Count() (int64, error)
@@ -26,10 +29,46 @@ func NewGameLogRepository(db *gorm.DB) GameLogRepository {
 
 func (r *gameLogRepository) GetByUserID(userID uint, limit int) ([]models.GameLog, error) {
 	var logs []models.GameLog
-	err := r.db.Preload("Game.Images", "img_type = ?", "header").
-		Where("user_id = ?", userID).
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND status != ?", userID, "backlog").
 		Order("logged_at desc").Limit(limit).Find(&logs).Error
 	return logs, err
+}
+
+func (r *gameLogRepository) GetBacklogByUserID(userID uint, limit int) ([]models.GameLog, error) {
+	var logs []models.GameLog
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND status = ?", userID, "backlog").
+		Order("logged_at desc").Limit(limit).Find(&logs).Error
+	return logs, err
+}
+
+func (r *gameLogRepository) GetByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error) {
+	var logs []models.GameLog
+	var total int64
+	offset := (page - 1) * limit
+	db := r.db.Model(&models.GameLog{}).Where("user_id = ? AND status != ?", userID, "backlog")
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND status != ?", userID, "backlog").
+		Order("logged_at desc").Offset(offset).Limit(limit).Find(&logs).Error
+	return logs, total, err
+}
+
+func (r *gameLogRepository) GetBacklogByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error) {
+	var logs []models.GameLog
+	var total int64
+	offset := (page - 1) * limit
+	db := r.db.Model(&models.GameLog{}).Where("user_id = ? AND status = ?", userID, "backlog")
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND status = ?", userID, "backlog").
+		Order("logged_at desc").Offset(offset).Limit(limit).Find(&logs).Error
+	return logs, total, err
 }
 
 func (r *gameLogRepository) LogGame(log *models.GameLog) error {

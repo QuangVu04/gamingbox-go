@@ -88,6 +88,12 @@ func (s *userService) GetUserProfile(userID uint) (*dto.UserProfileResponse, err
 		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy hoạt động gần đây")
 	}
 
+	rawLists, _ := s.listRepo.GetByUserID(userID)
+	listSummaries := make([]dto.ListSummary, 0, len(rawLists))
+	for _, l := range rawLists {
+		listSummaries = append(listSummaries, mapper.ToListSummary(&l))
+	}
+
 	return mapper.ToUserProfileResponse(
 		user,
 		averageRating,
@@ -96,6 +102,7 @@ func (s *userService) GetUserProfile(userID uint) (*dto.UserProfileResponse, err
 		backlogGames,
 		diary,
 		recentActivity,
+		listSummaries,
 	), nil
 }
 
@@ -293,7 +300,7 @@ func (s *userService) fetchReviewCommentCounts(reviews []models.Review) (map[uin
 }
 
 func (s *userService) fetchBacklogGames(userID uint, limit int) ([]dto.GameSummary, error) {
-	backlogList, err := s.listRepo.GetBacklogByUserID(userID)
+	logs, err := s.gameLogRepo.GetBacklogByUserID(userID, limit)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return []dto.GameSummary{}, nil
@@ -301,14 +308,9 @@ func (s *userService) fetchBacklogGames(userID uint, limit int) ([]dto.GameSumma
 		return nil, err
 	}
 
-	entries, err := s.listRepo.GetBacklogEntries(backlogList.ID, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]dto.GameSummary, 0, len(entries))
-	for _, entry := range entries {
-		result = append(result, mapper.ToGameSummary(&entry.Game))
+	result := make([]dto.GameSummary, 0, len(logs))
+	for _, log := range logs {
+		result = append(result, mapper.ToGameSummary(&log.Game))
 	}
 
 	return result, nil

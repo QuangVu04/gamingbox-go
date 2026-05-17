@@ -43,6 +43,7 @@ func (a *App) Seed() {
 	seeders.SeedAdmin(a.DB)
 	seeders.SeedRandomData(a.DB)
 	seeders.SeedGameboxData(a.DB)
+	seeders.SeedCoverImages(a.DB)
 }
 
 func (a *App) Run() {
@@ -65,7 +66,7 @@ func (a *App) Run() {
 	reviewService := services.NewReviewService(reviewRepo, userRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
 	likeService := services.NewLikeService(likeRepo, a.RDB, notificationService, reviewRepo, listRepo)
-	adminService := services.NewAdminService(userRepo, gameRepo, reviewRepo, gameLogRepo, activityLogRepo, ratingRepo)
+	adminService := services.NewAdminService(userRepo, gameRepo, reviewRepo, gameLogRepo, activityLogRepo, ratingRepo, listRepo)
 
 
 	authH := handlers.NewAuthHandler(authService)

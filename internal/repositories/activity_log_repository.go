@@ -8,6 +8,7 @@ import (
 
 type ActivityLogRepository interface {
 	GetRecentByUserID(userID uint, limit int) ([]models.ActivityLog, error)
+	GetByUserIDPaginated(userID uint, page, limit int) ([]models.ActivityLog, int64, error)
 }
 
 type activityLogRepository struct {
@@ -26,4 +27,16 @@ func (r *activityLogRepository) GetRecentByUserID(userID uint, limit int) ([]mod
 	}
 	err := db.Find(&activities).Error
 	return activities, err
+}
+
+func (r *activityLogRepository) GetByUserIDPaginated(userID uint, page, limit int) ([]models.ActivityLog, int64, error) {
+	var activities []models.ActivityLog
+	var total int64
+	offset := (page - 1) * limit
+	db := r.db.Model(&models.ActivityLog{}).Where("user_id = ?", userID)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Preload("User").Where("user_id = ?", userID).Order("created_at desc").Offset(offset).Limit(limit).Find(&activities).Error
+	return activities, total, err
 }

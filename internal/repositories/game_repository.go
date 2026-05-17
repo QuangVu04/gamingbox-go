@@ -90,7 +90,7 @@ func (r *gameRepository) GetTrendingGames(page, limit int) ([]models.GameTrendin
 	var fullGames []models.Game
 	if len(gameIDs) > 0 {
 		if err := r.db.Preload("Studio").
-			Preload("Images", "img_type = ?", "header").
+			Preload("Images", "img_type IN ?", []string{"header", "cover"}).
 			Preload("Genres").
 			Preload("Platforms").
 			Where("id IN ?", gameIDs).
@@ -142,7 +142,7 @@ func (r *gameRepository) Search(query string, page, limit int) ([]models.Game, i
 		Preload("Studio").
 		Preload("Genres").
 		Preload("Platforms").
-		Preload("Images", "img_type = ?", "header").
+		Preload("Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("title LIKE ?", "%"+query+"%")
 
 	err := db.Count(&total).Error
@@ -167,7 +167,7 @@ func (r *gameRepository) SearchAdminGames(search, category, platform, minRating,
 		Preload("Studio").
 		Preload("Genres").
 		Preload("Platforms").
-		Preload("Images", "img_type = ?", "header")
+		Preload("Images", "img_type IN ?", []string{"header", "cover"})
 
 	if search != "" {
 		db = db.Joins("LEFT JOIN studios ON studios.id = games.studio_id").
@@ -234,7 +234,7 @@ func (r *gameRepository) GetPopular(page, limit int) ([]models.Game, int64, erro
 		Preload("Studio").
 		Preload("Genres").
 		Preload("Platforms").
-		Preload("Images", "img_type = ?", "header")
+		Preload("Images", "img_type IN ?", []string{"header", "cover"})
 
 	err := db.Count(&total).Error
 	if err != nil {
@@ -254,7 +254,7 @@ func (r *gameRepository) GetByStudio(studioID uint, excludeGameID uint, limit in
 	var games []models.Game
 	err := r.db.Model(&models.Game{}).
 		Preload("Studio").
-		Preload("Images", "img_type = ?", "header").
+		Preload("Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("studio_id = ? AND id != ?", studioID, excludeGameID).
 		Limit(limit).
 		Find(&games).Error
@@ -270,7 +270,7 @@ func (r *gameRepository) GetByGenres(genreIDs []uint, excludeGameID uint, limit 
 	err := r.db.Model(&models.Game{}).
 		Joins("JOIN game_genres ON game_genres.game_id = games.id").
 		Preload("Studio").
-		Preload("Images", "img_type = ?", "header").
+		Preload("Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("game_genres.genre_id IN ? AND games.id != ?", genreIDs, excludeGameID).
 		Group("games.id").
 		Limit(limit).

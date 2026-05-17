@@ -48,7 +48,7 @@ type GameImg struct {
 	ID      uint   `gorm:"primaryKey"`
 	OgURL   string `gorm:"column:ogUrl"`
 	Thumb   string
-	ImgType string `gorm:"type:enum('header', 'screenshot', 'background')"`
+	ImgType string `gorm:"type:enum('header', 'screenshot', 'background', 'cover')"`
 	GameID  uint
 }
 

@@ -21,5 +21,8 @@ func RunMigrations(db *gorm.DB) {
         log.Fatalf("Migration failed: %v", err)
     }
 
+    // Đảm bảo mở rộng enum img_type trong MySQL
+    db.Exec("ALTER TABLE game_imgs MODIFY COLUMN img_type ENUM('header', 'screenshot', 'background', 'cover')")
+
     log.Println("Migrations completed successfully!")
 }

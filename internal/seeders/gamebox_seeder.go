@@ -1,6 +1,7 @@
 package seeders
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -143,4 +144,31 @@ func SeedGameboxData(db *gorm.DB) {
 	}
 
 	log.Println("Gamebox Seeder đã hoàn tất!")
+}
+
+func SeedCoverImages(db *gorm.DB) {
+	log.Println("Đang kiểm tra và tạo ảnh Cover (Library) cho các game hiện có...")
+	var games []models.Game
+	db.Find(&games)
+
+	count := 0
+	for _, game := range games {
+		if game.SteamID != 0 {
+			coverURL := fmt.Sprintf("https://cdn.akamai.steamstatic.com/steam/apps/%d/library_600x900.jpg", game.SteamID)
+
+			var existing models.GameImg
+			err := db.Where("game_id = ? AND img_type = ?", game.ID, "cover").First(&existing).Error
+			if err != nil { // Not found
+				coverImg := models.GameImg{
+					GameID:  game.ID,
+					OgURL:   coverURL,
+					ImgType: "cover",
+				}
+				if err := db.Create(&coverImg).Error; err == nil {
+					count++
+				}
+			}
+		}
+	}
+	log.Printf("Đã bổ sung thành công %d ảnh cover mới!\n", count)
 }

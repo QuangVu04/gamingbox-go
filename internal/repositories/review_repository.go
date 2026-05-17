@@ -10,6 +10,7 @@ import (
 type ReviewRepository interface {
 	GetRecentByUserID(userID uint, limit int) ([]models.Review, error)
 	GetPopularByUserID(userID uint, limit int) ([]models.Review, error)
+	GetByUserIDPaginated(userID uint, page, limit int, filter string) ([]models.Review, int64, error)
 	GetCommentCounts(reviewIDs []uint) (map[uint]int, error)
 	GetTrendingReviews(page, limit int) ([]models.Review, int64, error)
 	FindByID(id uint) (*models.Review, error)
@@ -36,7 +37,7 @@ func NewReviewRepository(db *gorm.DB) ReviewRepository {
 
 func (r *reviewRepository) GetRecentByUserID(userID uint, limit int) ([]models.Review, error) {
 	var reviews []models.Review
-	err := r.db.Preload("Game.Images", "img_type = ?", "header").
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("user_id = ? AND target_type = ?", userID, "game").
 		Order("created_at desc").Limit(limit).Find(&reviews).Error
 	return reviews, err
@@ -44,10 +45,28 @@ func (r *reviewRepository) GetRecentByUserID(userID uint, limit int) ([]models.R
 
 func (r *reviewRepository) GetPopularByUserID(userID uint, limit int) ([]models.Review, error) {
 	var reviews []models.Review
-	err := r.db.Preload("Game.Images", "img_type = ?", "header").
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("user_id = ? AND target_type = ?", userID, "game").
 		Order("like_count desc").Limit(limit * 3).Find(&reviews).Error
 	return reviews, err
+}
+
+func (r *reviewRepository) GetByUserIDPaginated(userID uint, page, limit int, filter string) ([]models.Review, int64, error) {
+	var reviews []models.Review
+	var total int64
+	offset := (page - 1) * limit
+	db := r.db.Model(&models.Review{}).Where("user_id = ? AND target_type = ?", userID, "game")
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	db = r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).Where("user_id = ? AND target_type = ?", userID, "game")
+	if filter == "popular" {
+		db = db.Order("like_count desc, created_at desc")
+	} else {
+		db = db.Order("created_at desc")
+	}
+	err := db.Offset(offset).Limit(limit).Find(&reviews).Error
+	return reviews, total, err
 }
 
 func (r *reviewRepository) GetCommentCounts(reviewIDs []uint) (map[uint]int, error) {
@@ -91,7 +110,7 @@ func (r *reviewRepository) GetTrendingReviews(page, limit int) ([]models.Review,
 
 	// Get trending reviews with preloads
 	err = r.db.
-		Preload("Game.Images", "img_type = ?", "header").
+		Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		Preload("Game.Studio").
 		Preload("User").
 		Where("target_type = ? AND created_at > ?", "game", time.Now().AddDate(0, 0, -7)).

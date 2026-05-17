@@ -179,3 +179,110 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, gin.H{"message": "Xóa người dùng thành công"})
 }
+
+func (h *AdminHandler) GetUserOverview(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+
+	overview, err := h.adminService.GetUserDetailOverview(uint(userID))
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	utils.Success(c, http.StatusOK, overview)
+}
+
+func (h *AdminHandler) GetUserActivitiesPaginated(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	res, err := h.adminService.GetUserActivities(uint(userID), page, limit)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *AdminHandler) GetUserReviewsPaginated(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+	filter := c.DefaultQuery("filter", "recent")
+
+	res, err := h.adminService.GetUserReviews(uint(userID), page, limit, filter)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *AdminHandler) GetUserListsPaginated(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	res, err := h.adminService.GetUserLists(uint(userID), page, limit)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *AdminHandler) GetUserBacklogPaginated(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	res, err := h.adminService.GetUserBacklog(uint(userID), page, limit)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *AdminHandler) GetUserGamesPaginated(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+
+	res, err := h.adminService.GetUserLibraryGames(uint(userID), page, limit)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

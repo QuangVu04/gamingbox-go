@@ -13,6 +13,8 @@ type UserProfileResponse struct {
 	AvatarURL      *string           `json:"avatar_url"`
 	Bio            *string           `json:"bio"`
 	Role           models.UserRole   `json:"role"`
+	Status         string            `json:"status"`
+	Location       string            `json:"location"`
 	SteamID        string            `json:"steam_id"`
 	FollowerCount  int               `json:"follower_count"`
 	FollowingCount int               `json:"following_count"`
@@ -26,6 +28,16 @@ type UserProfileResponse struct {
 	BacklogGames   []GameSummary     `json:"backlog_games"`
 	Diary          []DiaryEntry      `json:"diary"`
 	RecentActivity []ActivitySummary `json:"recent_activity"`
+	Lists          []ListSummary     `json:"lists"`
+}
+
+type ListSummary struct {
+	ID        uint      `json:"id"`
+	Title     string    `json:"title"`
+	GameCount int       `json:"game_count"`
+	LikeCount int       `json:"like_count"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Thumbnail string    `json:"thumbnail"`
 }
 
 type FollowRequest struct {

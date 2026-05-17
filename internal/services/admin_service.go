@@ -14,6 +14,12 @@ type AdminService interface {
 	GetAdminGames(page, limit int, search, category, platform, minRating, startDate, endDate, sort string) ([]dto.GameAdminResponse, int64, error)
 	GetAdminUsers(page, limit int, search, role, sort string) ([]dto.UserAdminResponse, int64, error)
 	DeleteUser(id uint) error
+	GetUserDetailOverview(userID uint) (*dto.UserDetailOverviewResponse, error)
+	GetUserActivities(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
+	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
+	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
+	GetUserBacklog(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error)
+	GetUserLibraryGames(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserLibraryGameDTO], error)
 }
 
 type adminService struct {
@@ -23,6 +29,7 @@ type adminService struct {
 	gameLogRepo     repositories.GameLogRepository
 	activityLogRepo repositories.ActivityLogRepository
 	ratingRepo      repositories.RatingRepository
+	listRepo        repositories.ListRepository
 }
 
 func NewAdminService(
@@ -32,6 +39,7 @@ func NewAdminService(
 	gameLogRepo repositories.GameLogRepository,
 	activityLogRepo repositories.ActivityLogRepository,
 	ratingRepo repositories.RatingRepository,
+	listRepo repositories.ListRepository,
 ) AdminService {
 	return &adminService{
 		userRepo:        userRepo,
@@ -40,6 +48,7 @@ func NewAdminService(
 		gameLogRepo:     gameLogRepo,
 		activityLogRepo: activityLogRepo,
 		ratingRepo:      ratingRepo,
+		listRepo:        listRepo,
 	}
 }
 
@@ -104,7 +113,13 @@ func (s *adminService) GetDashboardStats(timeframe string) (*dto.DashboardStatsR
 		}
 
 		imageURL := ""
-		if len(tg.Game.Images) > 0 {
+		for _, img := range tg.Game.Images {
+			if img.ImgType == "cover" {
+				imageURL = img.OgURL
+				break
+			}
+		}
+		if imageURL == "" && len(tg.Game.Images) > 0 {
 			imageURL = tg.Game.Images[0].OgURL
 		}
 
@@ -245,7 +260,13 @@ func (s *adminService) GetAdminGames(page, limit int, search, category, platform
 		}
 
 		var img string
-		if len(g.Images) > 0 {
+		for _, image := range g.Images {
+			if image.ImgType == "cover" {
+				img = image.OgURL
+				break
+			}
+		}
+		if img == "" && len(g.Images) > 0 {
 			img = g.Images[0].OgURL
 		}
 
@@ -321,5 +342,215 @@ func (s *adminService) GetAdminUsers(page, limit int, search, role, sort string)
 
 func (s *adminService) DeleteUser(id uint) error {
 	return s.userRepo.Delete(id)
+}
+
+func (s *adminService) GetUserDetailOverview(userID uint) (*dto.UserDetailOverviewResponse, error) {
+	u, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	avgRating, _ := s.ratingRepo.GetAverageRatingByUserID(userID)
+
+	var avatar string
+	if u.AvatarURL != nil {
+		avatar = *u.AvatarURL
+	}
+
+	var bio string
+	if u.Bio != nil {
+		bio = *u.Bio
+	}
+
+	return &dto.UserDetailOverviewResponse{
+		ID:             u.ID,
+		Email:          u.Email,
+		Username:       u.Username,
+		AvatarURL:      &avatar,
+		Bio:            &bio,
+		Role:           string(u.Role),
+		Status:         u.Status,
+		Location:       "Hồ Chí Minh, Việt Nam",
+		SteamID:        u.SteamID,
+		FollowerCount:  u.FollowerCount,
+		FollowingCount: u.FollowingCount,
+		ReviewCount:    u.ReviewCount,
+		ListCount:      u.ListCount,
+		GameLogsCount:  u.GameLogsCount,
+		AverageRating:  avgRating,
+		CreatedAt:      u.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
+	}, nil
+}
+
+func (s *adminService) GetUserActivities(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ActivitySummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	activities, total, err := s.activityLogRepo.GetByUserIDPaginated(userID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.ActivitySummary, 0, len(activities))
+	for _, act := range activities {
+		data = append(data, mapper.ToActivitySummary(&act))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ActivitySummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *adminService) GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	reviews, total, err := s.reviewRepo.GetByUserIDPaginated(userID, page, limit, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	reviewIDs := make([]uint, 0, len(reviews))
+	for _, r := range reviews {
+		reviewIDs = append(reviewIDs, r.ID)
+	}
+	commentCounts, _ := s.reviewRepo.GetCommentCounts(reviewIDs)
+
+	data := make([]dto.ReviewSummary, 0, len(reviews))
+	for _, r := range reviews {
+		data = append(data, mapper.ToReviewSummary(&r, commentCounts[r.ID]))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ReviewSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *adminService) GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	lists, total, err := s.listRepo.GetByUserIDPaginated(userID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.ListSummary, 0, len(lists))
+	for _, l := range lists {
+		data = append(data, mapper.ToListSummary(&l))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ListSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *adminService) GetUserBacklog(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	logs, total, err := s.gameLogRepo.GetBacklogByUserIDPaginated(userID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.GameSummary, 0, len(logs))
+	for _, lg := range logs {
+		data = append(data, mapper.ToGameSummary(&lg.Game))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.GameSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *adminService) GetUserLibraryGames(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserLibraryGameDTO], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	logs, total, err := s.gameLogRepo.GetByUserIDPaginated(userID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.UserLibraryGameDTO, 0, len(logs))
+	for _, lg := range logs {
+		year := "2024"
+		if !lg.Game.ReleaseDate.IsZero() {
+			year = lg.Game.ReleaseDate.Format("2006")
+		}
+
+		img := ""
+		for _, image := range lg.Game.Images {
+			if image.ImgType == "cover" {
+				img = image.OgURL
+				break
+			}
+		}
+		if img == "" && len(lg.Game.Images) > 0 {
+			img = lg.Game.Images[0].OgURL
+		}
+		if img == "" {
+			img = "https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900.jpg"
+		}
+
+		statusStr := "Completed"
+		if lg.Status == "playing" {
+			statusStr = "Playing"
+		} else if lg.Status == "dropped" {
+			statusStr = "Dropped"
+		}
+
+		data = append(data, dto.UserLibraryGameDTO{
+			ID:         lg.Game.ID,
+			SteamID:    lg.Game.SteamID,
+			Title:      lg.Game.Title,
+			Year:       year,
+			Status:     statusStr,
+			Rating:     lg.Game.AvgRating,
+			HasReview:  true,
+			LastPlayed: lg.LoggedAt.Format("02/01/2006"),
+			Image:      img,
+		})
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.UserLibraryGameDTO]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
 }
 

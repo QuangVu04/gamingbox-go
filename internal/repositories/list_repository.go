@@ -20,6 +20,8 @@ type WeeklyCount struct {
     }
 
 type ListRepository interface {
+	GetByUserID(userID uint) ([]models.List, error)
+	GetByUserIDPaginated(userID uint, page, limit int) ([]models.List, int64, error)
 	GetBacklogByUserID(userID uint) (*models.List, error)
 	GetBacklogEntries(listID uint, limit int) ([]models.ListEntry, error)
 	GetTrendingLists(page, limit int) ([]ListTrendingData, int64, error)
@@ -39,6 +41,28 @@ func NewListRepository(db *gorm.DB) ListRepository {
 	return &listRepository{db: db}
 }
 
+func (r *listRepository) GetByUserID(userID uint) ([]models.List, error) {
+	var lists []models.List
+	err := r.db.Preload("Entries").Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND is_public = ? AND title NOT IN ?", userID, true, []string{"Backlog", "Muốn chơi"}).
+		Order("created_at desc").Find(&lists).Error
+	return lists, err
+}
+
+func (r *listRepository) GetByUserIDPaginated(userID uint, page, limit int) ([]models.List, int64, error) {
+	var lists []models.List
+	var total int64
+	offset := (page - 1) * limit
+	db := r.db.Model(&models.List{}).Where("user_id = ? AND is_public = ? AND title NOT IN ?", userID, true, []string{"Backlog", "Muốn chơi"})
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.Preload("Entries").Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ? AND is_public = ? AND title NOT IN ?", userID, true, []string{"Backlog", "Muốn chơi"}).
+		Order("created_at desc").Offset(offset).Limit(limit).Find(&lists).Error
+	return lists, total, err
+}
+
 func (r *listRepository) GetBacklogByUserID(userID uint) (*models.List, error) {
 	var list models.List
 	err := r.db.Where("user_id = ? AND title IN ?", userID, []string{"Backlog", "Muốn chơi"}).
@@ -51,7 +75,7 @@ func (r *listRepository) GetBacklogByUserID(userID uint) (*models.List, error) {
 
 func (r *listRepository) GetBacklogEntries(listID uint, limit int) ([]models.ListEntry, error) {
 	var entries []models.ListEntry
-	err := r.db.Preload("Game.Images", "img_type = ?", "header").
+	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("list_id = ?", listID).
 		Order("position asc").Limit(limit).Find(&entries).Error
 	return entries, err
@@ -76,7 +100,7 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
         Preload("Entries", func(db *gorm.DB) *gorm.DB {
             return db.Order("position ASC")
         }).
-        Preload("Entries.Game.Images", "img_type = ?", "header").
+        Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
         Where("is_public = ?", true).
         Order(r.db.Model(&models.Like{}).Select("COUNT(*)").Where("target_id = lists.id AND target_type = 'list' AND created_at > ?", sevenDaysAgo).Order("COUNT(*) DESC")).
         Order("like_count DESC").
@@ -136,7 +160,7 @@ func (r *listRepository) FindByID(id uint) (*models.List, error) {
 func (r *listRepository) FindDetailByID(id uint) (*models.List, error) {
 	var list models.List
 	err := r.db.Preload("User").
-		Preload("Entries.Game.Images", "img_type = ?", "header").
+		Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		First(&list, id).Error
 	return &list, err
 }
@@ -191,7 +215,7 @@ func (r *listRepository) GetGameLists(gameID uint, page, limit int, sort string)
 		Preload("Entries", func(db *gorm.DB) *gorm.DB {
 			return db.Order("position ASC")
 		}).
-		Preload("Entries.Game.Images", "img_type = ?", "header").
+		Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		Where("id IN (?) AND is_public = ?", subQuery, true)
 
 	// Get total

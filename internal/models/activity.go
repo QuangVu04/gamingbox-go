@@ -33,7 +33,7 @@ type GameLog struct {
 	UserID   uint      `gorm:"primaryKey"`
 	GameID   uint      `gorm:"primaryKey"`
 	LoggedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
-	Status   string    `gorm:"type:enum('playing', 'completed', 'dropped')"`
+	Status   string    `gorm:"type:enum('playing', 'completed', 'dropped', 'backlog')"`
 
 	Game Game `gorm:"foreignKey:GameID"`
 }

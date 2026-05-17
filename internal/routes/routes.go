@@ -140,6 +140,12 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		{
 			users.GET("", adminHandler.GetUsers)
 			users.GET("/:id", adminHandler.GetUserDetail)
+			users.GET("/:id/overview", adminHandler.GetUserOverview)
+			users.GET("/:id/activities", adminHandler.GetUserActivitiesPaginated)
+			users.GET("/:id/reviews", adminHandler.GetUserReviewsPaginated)
+			users.GET("/:id/lists", adminHandler.GetUserListsPaginated)
+			users.GET("/:id/backlog", adminHandler.GetUserBacklogPaginated)
+			users.GET("/:id/games", adminHandler.GetUserGamesPaginated)
 			users.PATCH("/:id/status", adminHandler.UpdateStatus)
 			users.PATCH("/:id/role", adminHandler.UpdateRole)
 			users.DELETE("/:id", adminHandler.DeleteUser)

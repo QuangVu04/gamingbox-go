@@ -25,6 +25,12 @@ func firstPoster(game *models.Game) string {
 	}
 
 	for _, img := range game.Images {
+		if img.ImgType == "cover" {
+			return img.OgURL
+		}
+	}
+
+	for _, img := range game.Images {
 		if img.ImgType == "header" {
 			return img.OgURL
 		}
