@@ -139,6 +139,20 @@ func (h *AdminHandler) GetGames(c *gin.Context) {
 	})
 }
 
+func (h *AdminHandler) GetAdminActivities(c *gin.Context) {
+	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
+	limit := utils.GetQueryIntWithRange(c, "limit", 20, 1, 100)
+	filterType := c.Query("filter")
+	searchQuery := c.Query("search")
+
+	res, err := h.adminService.GetUserActivities(0, page, limit, filterType, searchQuery)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func (h *AdminHandler) GetUsers(c *gin.Context) {
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
 	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
@@ -205,8 +219,10 @@ func (h *AdminHandler) GetUserActivitiesPaginated(c *gin.Context) {
 	}
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
 	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
+	filterType := c.Query("filter")
+	searchQuery := c.Query("search")
 
-	res, err := h.adminService.GetUserActivities(uint(userID), page, limit)
+	res, err := h.adminService.GetUserActivities(uint(userID), page, limit, filterType, searchQuery)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
 		return

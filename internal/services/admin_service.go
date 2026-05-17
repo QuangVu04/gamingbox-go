@@ -15,7 +15,7 @@ type AdminService interface {
 	GetAdminUsers(page, limit int, search, role, sort string) ([]dto.UserAdminResponse, int64, error)
 	DeleteUser(id uint) error
 	GetUserDetailOverview(userID uint) (*dto.UserDetailOverviewResponse, error)
-	GetUserActivities(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
+	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
 	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
 	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
 	GetUserBacklog(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error)
@@ -381,16 +381,47 @@ func (s *adminService) GetUserDetailOverview(userID uint) (*dto.UserDetailOvervi
 	}, nil
 }
 
-func (s *adminService) GetUserActivities(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ActivitySummary], error) {
+func (s *adminService) GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error) {
 	if page < 1 { page = 1 }
 	if limit < 1 { limit = 10 }
-	activities, total, err := s.activityLogRepo.GetByUserIDPaginated(userID, page, limit)
+	activities, total, err := s.activityLogRepo.GetByUserIDPaginated(userID, page, limit, filterType, searchQuery)
 	if err != nil {
 		return nil, err
 	}
 	data := make([]dto.ActivitySummary, 0, len(activities))
 	for _, act := range activities {
-		data = append(data, mapper.ToActivitySummary(&act))
+		summary := mapper.ToActivitySummary(&act)
+
+		var gameID uint
+		if act.TargetType == "game" || act.TargetType == "rating" {
+			gameID = act.TargetID
+		} else if act.TargetType == "review" {
+			if r, err := s.reviewRepo.FindByID(act.TargetID); err == nil && r != nil {
+				gameID = r.TargetID
+			}
+		} else if act.TargetType == "list" {
+			if l, err := s.listRepo.FindDetailByID(act.TargetID); err == nil && l != nil && len(l.Entries) > 0 {
+				gameID = l.Entries[0].GameID
+			}
+		}
+
+		if gameID != 0 {
+			if g, err := s.gameRepo.GetByID(gameID); err == nil && g != nil {
+				imgURL := ""
+				for _, img := range g.Images {
+					if img.ImgType == "cover" {
+						imgURL = img.OgURL
+						break
+					}
+				}
+				if imgURL == "" && len(g.Images) > 0 {
+					imgURL = g.Images[0].OgURL
+				}
+				summary.TargetImage = imgURL
+			}
+		}
+
+		data = append(data, summary)
 	}
 	totalPages := int(total) / limit
 	if int(total)%limit != 0 { totalPages++ }
