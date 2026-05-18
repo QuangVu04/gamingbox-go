@@ -289,3 +289,79 @@ func (h *GameHandler) GetPlatforms(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "data": platforms})
 }
+
+// CreateGame godoc
+// @Summary      Thêm Game mới (Admin)
+// @Description  Thêm tựa game mới vào hệ thống kèm hình ảnh, thể loại, nền tảng
+// @Tags         Games
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.CreateGameRequest true "Thông tin game"
+// @Success      201  {object}  interface{}
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games [post]
+func (h *GameHandler) CreateGame(c *gin.Context) {
+	var req dto.CreateGameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "Dữ liệu gửi lên không hợp lệ: " + err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	game, err := h.gameService.CreateGame(ctx, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Không thể thêm game: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"status": "success",
+		"data": gin.H{
+			"id":           game.ID,
+			"title":        game.Title,
+			"release_date": game.ReleaseDate,
+		},
+	})
+}
+
+// DeleteGenre godoc
+// @Summary      Xóa Thể loại (Admin)
+// @Description  Xóa vĩnh viễn một thể loại khỏi hệ thống
+// @Tags         Games
+// @Security     BearerAuth
+// @Produce      json
+// @Param        name path string true "Tên Thể loại"
+// @Success      200  {object}  interface{}
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games/genres/{name} [delete]
+func (h *GameHandler) DeleteGenre(c *gin.Context) {
+	name := c.Param("name")
+	ctx := context.Background()
+	if err := h.gameService.DeleteGenre(ctx, name); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Không thể xóa thể loại: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Đã xóa thể loại thành công"})
+}
+
+// DeletePlatform godoc
+// @Summary      Xóa Nền tảng (Admin)
+// @Description  Xóa vĩnh viễn một nền tảng khỏi hệ thống
+// @Tags         Games
+// @Security     BearerAuth
+// @Produce      json
+// @Param        name path string true "Tên Nền tảng"
+// @Success      200  {object}  interface{}
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games/platforms/{name} [delete]
+func (h *GameHandler) DeletePlatform(c *gin.Context) {
+	name := c.Param("name")
+	ctx := context.Background()
+	if err := h.gameService.DeletePlatform(ctx, name); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Không thể xóa nền tảng: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Đã xóa nền tảng thành công"})
+}

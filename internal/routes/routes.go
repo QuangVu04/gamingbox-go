@@ -85,6 +85,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		gamesProtected.Use(middleware.Authenticate())
 		{
 			gamesProtected.POST("/rate", gameHandler.RateGame)
+			gamesProtected.POST("", middleware.RequireAdmin(), gameHandler.CreateGame)
+			gamesProtected.DELETE("/genres/:name", middleware.RequireAdmin(), gameHandler.DeleteGenre)
+			gamesProtected.DELETE("/platforms/:name", middleware.RequireAdmin(), gameHandler.DeletePlatform)
 		}
 	}
 

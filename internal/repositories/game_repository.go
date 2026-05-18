@@ -21,6 +21,9 @@ type GameRepository interface {
 	SearchAdminGames(search, category, platform, minRating, startDate, endDate, sort string, page, limit int) ([]models.Game, int64, error)
 	GetGenres() ([]models.Genre, error)
 	GetPlatforms() ([]models.Platform, error)
+	CreateGame(game *models.Game) error
+	DeleteGenreByName(name string) error
+	DeletePlatformByName(name string) error
 }
 
 type gameRepository struct {
@@ -361,4 +364,18 @@ func (r *gameRepository) GetPlatforms() ([]models.Platform, error) {
 	var platforms []models.Platform
 	err := r.db.Order("name ASC").Find(&platforms).Error
 	return platforms, err
+}
+
+func (r *gameRepository) CreateGame(game *models.Game) error {
+	return r.db.Create(game).Error
+}
+
+func (r *gameRepository) DeleteGenreByName(name string) error {
+	r.db.Exec("DELETE FROM game_genres WHERE genre_id IN (SELECT id FROM genres WHERE name = ?)", name)
+	return r.db.Where("name = ?", name).Delete(&models.Genre{}).Error
+}
+
+func (r *gameRepository) DeletePlatformByName(name string) error {
+	r.db.Exec("DELETE FROM game_platforms WHERE platform_id IN (SELECT id FROM platforms WHERE name = ?)", name)
+	return r.db.Where("name = ?", name).Delete(&models.Platform{}).Error
 }

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math"
 	"time"
@@ -26,6 +27,9 @@ type GameService interface {
 	GetPopularGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetGenres(ctx context.Context) ([]models.Genre, error)
 	GetPlatforms(ctx context.Context) ([]models.Platform, error)
+	CreateGame(ctx context.Context, req dto.CreateGameRequest) (*models.Game, error)
+	DeleteGenre(ctx context.Context, name string) error
+	DeletePlatform(ctx context.Context, name string) error
 }
 
 type gameService struct {
@@ -279,4 +283,126 @@ func (s *gameService) GetGenres(ctx context.Context) ([]models.Genre, error) {
 
 func (s *gameService) GetPlatforms(ctx context.Context) ([]models.Platform, error) {
 	return s.gameRepo.GetPlatforms()
+}
+
+func (s *gameService) CreateGame(ctx context.Context, req dto.CreateGameRequest) (*models.Game, error) {
+	// 1. Xử lý Studio: Tìm hoặc tạo mới studio
+	var studio models.Studio
+	if req.Studio == "" {
+		req.Studio = "Independent Studio"
+	}
+	if err := s.db.Where("name = ?", req.Studio).FirstOrCreate(&studio, models.Studio{Name: req.Studio, Description: "Studio phát triển tựa game " + req.Title}).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. Xử lý Genres: Tìm hoặc tạo mới các thể loại
+	var genres []models.Genre
+	for _, genreName := range req.Genres {
+		if genreName == "" {
+			continue
+		}
+		var g models.Genre
+		if err := s.db.Where("name = ?", genreName).FirstOrCreate(&g, models.Genre{Name: genreName}).Error; err != nil {
+			return nil, err
+		}
+		genres = append(genres, g)
+	}
+
+	// 3. Xử lý Platforms: Tìm hoặc tạo mới các nền tảng
+	var platforms []models.Platform
+	for _, platName := range req.Platforms {
+		if platName == "" {
+			continue
+		}
+		var p models.Platform
+		if err := s.db.Where("name = ?", platName).FirstOrCreate(&p, models.Platform{Name: platName}).Error; err != nil {
+			return nil, err
+		}
+		platforms = append(platforms, p)
+	}
+
+	// 4. Xử lý Ngày ra mắt (ReleaseDate)
+	releaseDate := time.Now()
+	if req.ReleaseDate != "" {
+		if parsed, err := time.Parse("2006-01-02", req.ReleaseDate); err == nil {
+			releaseDate = parsed
+		} else if parsedISO, errISO := time.Parse(time.RFC3339, req.ReleaseDate); errISO == nil {
+			releaseDate = parsedISO
+		}
+	}
+
+	// 5. Xử lý Rating
+	var ratingVal float64
+	if req.Rating != "" {
+		fmt.Sscanf(req.Rating, "%f", &ratingVal)
+	}
+	if ratingVal == 0 {
+		ratingVal = 4.5
+	}
+
+	// 6. Khởi tạo đối tượng Game
+	game := &models.Game{
+		Title:       req.Title,
+		Description: req.Description,
+		ReleaseDate: releaseDate,
+		StudioID:    studio.ID,
+		AvgRating:   ratingVal,
+		ReviewCount: 1, // Để hiển thị đẹp
+		LikeCount:   10,
+		Genres:      genres,
+		Platforms:   platforms,
+	}
+
+	// 7. Lưu Game vào DB
+	if err := s.gameRepo.CreateGame(game); err != nil {
+		return nil, err
+	}
+
+	// 8. Xử lý Hình ảnh (GameImg)
+	// Banner chính là header
+	if req.Images.Header != "" {
+		headerImg := models.GameImg{
+			OgURL:   req.Images.Header,
+			Thumb:   req.Images.Header,
+			ImgType: "header",
+			GameID:  game.ID,
+		}
+		s.db.Create(&headerImg)
+	}
+	// Ảnh bìa là cover
+	if req.Images.Main != "" {
+		coverImg := models.GameImg{
+			OgURL:   req.Images.Main,
+			Thumb:   req.Images.Main,
+			ImgType: "cover",
+			GameID:  game.ID,
+		}
+		s.db.Create(&coverImg)
+	}
+	// Các ảnh screenshot
+	for _, ss := range req.Screenshots {
+		if ss == "" {
+			continue
+		}
+		ssImg := models.GameImg{
+			OgURL:   ss,
+			Thumb:   ss,
+			ImgType: "screenshot",
+			GameID:  game.ID,
+		}
+		s.db.Create(&ssImg)
+	}
+
+	// Invalidate cache
+	s.rdb.Del(ctx, "trending_games:1:12", "trending_games:1:10")
+
+	return game, nil
+}
+
+func (s *gameService) DeleteGenre(ctx context.Context, name string) error {
+	return s.gameRepo.DeleteGenreByName(name)
+}
+
+func (s *gameService) DeletePlatform(ctx context.Context, name string) error {
+	return s.gameRepo.DeletePlatformByName(name)
 }

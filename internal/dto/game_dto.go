@@ -68,3 +68,18 @@ type PaginationDTO struct {
 	TotalPages   int `json:"total_pages"`
 	Limit        int `json:"limit"`
 }
+
+type CreateGameRequest struct {
+	Title       string   `json:"title" binding:"required"`
+	Description string   `json:"description"`
+	ReleaseDate string   `json:"releaseDate"`
+	Studio      string   `json:"studio"`
+	Rating      string   `json:"rating"`
+	Platforms   []string `json:"platforms"`
+	Genres      []string `json:"genres"`
+	Images      struct {
+		Header string `json:"header"` // Banner chính
+		Main   string `json:"main"`   // Ảnh bìa cover
+	} `json:"images"`
+	Screenshots []string `json:"screenshots"`
+}
