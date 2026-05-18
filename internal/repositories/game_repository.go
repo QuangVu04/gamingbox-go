@@ -19,6 +19,8 @@ type GameRepository interface {
 	CountRecent(since time.Time) (int64, error)
 	GetGenreStats(since time.Time) (map[string]int, error)
 	SearchAdminGames(search, category, platform, minRating, startDate, endDate, sort string, page, limit int) ([]models.Game, int64, error)
+	GetGenres() ([]models.Genre, error)
+	GetPlatforms() ([]models.Platform, error)
 }
 
 type gameRepository struct {
@@ -349,3 +351,14 @@ func (r *gameRepository) GetGenreStats(since time.Time) (map[string]int, error) 
 	return stats, nil
 }
 
+func (r *gameRepository) GetGenres() ([]models.Genre, error) {
+	var genres []models.Genre
+	err := r.db.Order("name ASC").Find(&genres).Error
+	return genres, err
+}
+
+func (r *gameRepository) GetPlatforms() ([]models.Platform, error) {
+	var platforms []models.Platform
+	err := r.db.Order("name ASC").Find(&platforms).Error
+	return platforms, err
+}

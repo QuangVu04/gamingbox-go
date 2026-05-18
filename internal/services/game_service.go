@@ -24,6 +24,8 @@ type GameService interface {
 	GetGameByID(ctx context.Context, id uint) (*dto.GameDetailResponse, error)
 	SearchGames(ctx context.Context, query string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetPopularGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
+	GetGenres(ctx context.Context) ([]models.Genre, error)
+	GetPlatforms(ctx context.Context) ([]models.Platform, error)
 }
 
 type gameService struct {
@@ -269,4 +271,12 @@ func (s *gameService) GetPopularGames(ctx context.Context, page, limit int) ([]d
 	}
 
 	return responses, pagination, nil
+}
+
+func (s *gameService) GetGenres(ctx context.Context) ([]models.Genre, error) {
+	return s.gameRepo.GetGenres()
+}
+
+func (s *gameService) GetPlatforms(ctx context.Context) ([]models.Platform, error) {
+	return s.gameRepo.GetPlatforms()
 }
