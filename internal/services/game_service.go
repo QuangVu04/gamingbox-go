@@ -23,7 +23,7 @@ type GameService interface {
 	GetTrendingGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	RateGame(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error)
 	GetGameByID(ctx context.Context, id uint) (*dto.GameDetailResponse, error)
-	SearchGames(ctx context.Context, query string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
+	SearchGames(ctx context.Context, query, category, platform, sort string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetPopularGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetGenres(ctx context.Context) ([]models.Genre, error)
 	GetPlatforms(ctx context.Context) ([]models.Platform, error)
@@ -207,14 +207,12 @@ func getReviewIDs(reviews []models.Review) []uint {
 	return ids
 }
 
-func (s *gameService) SearchGames(ctx context.Context, query string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error) {
-	games, total, err := s.gameRepo.Search(query, page, limit)
+func (s *gameService) SearchGames(ctx context.Context, query, category, platform, sort string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error) {
+	games, total, err := s.gameRepo.SearchAdminGames(query, category, platform, "", "", "", sort, page, limit)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Reuse GameTrendingResponse for search results, mapping manually or updating mapper
-	// For simplicity, let's map them here or use a helper
 	responses := make([]dto.GameTrendingResponse, 0, len(games))
 	for _, g := range games {
 		thumbnail := ""
@@ -224,6 +222,15 @@ func (s *gameService) SearchGames(ctx context.Context, query string, page, limit
 				break
 			}
 		}
+		if thumbnail == "" && len(g.Images) > 0 {
+			thumbnail = g.Images[0].OgURL
+		}
+
+		studios := make([]string, 0)
+		if g.Studio.ID > 0 {
+			studios = append(studios, g.Studio.Name)
+		}
+
 		responses = append(responses, dto.GameTrendingResponse{
 			GameID:       g.ID,
 			Title:        g.Title,
@@ -231,6 +238,7 @@ func (s *gameService) SearchGames(ctx context.Context, query string, page, limit
 			AvgRating:    g.AvgRating,
 			TotalReviews: g.ReviewCount,
 			ReleaseDate:  g.ReleaseDate,
+			Studios:      studios,
 		})
 	}
 

@@ -152,11 +152,14 @@ func (h *GameHandler) GetGameDetail(c *gin.Context) {
 // @Router       /games/search [get]
 func (h *GameHandler) SearchGames(c *gin.Context) {
 	query := c.Query("q")
+	genre := c.Query("genre")
+	platform := c.Query("platform")
+	sort := c.Query("sort")
 	page := utils.GetQueryIntWithRange(c, "page", 1, 1, 1000)
 	limit := utils.GetQueryIntWithRange(c, "limit", 12, 1, 100)
 
 	ctx := context.Background()
-	games, pagination, err := h.gameService.SearchGames(ctx, query, page, limit)
+	games, pagination, err := h.gameService.SearchGames(ctx, query, genre, platform, sort, page, limit)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", "lỗi tìm kiếm")
 		return
