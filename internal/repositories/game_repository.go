@@ -22,6 +22,7 @@ type GameRepository interface {
 	GetGenres() ([]models.Genre, error)
 	GetPlatforms() ([]models.Platform, error)
 	CreateGame(game *models.Game) error
+	UpdateGame(game *models.Game) error
 	DeleteGenreByName(name string) error
 	DeletePlatformByName(name string) error
 	SearchStudios(query string) ([]models.Studio, error)
@@ -370,6 +371,40 @@ func (r *gameRepository) GetPlatforms() ([]models.Platform, error) {
 
 func (r *gameRepository) CreateGame(game *models.Game) error {
 	return r.db.Create(game).Error
+}
+
+func (r *gameRepository) UpdateGame(game *models.Game) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Update core game fields
+		if err := tx.Save(game).Error; err != nil {
+			return err
+		}
+		
+		// Replace associations (Genres and Platforms)
+		if err := tx.Model(game).Association("Genres").Replace(game.Genres); err != nil {
+			return err
+		}
+		if err := tx.Model(game).Association("Platforms").Replace(game.Platforms); err != nil {
+			return err
+		}
+
+		// Delete old images
+		if err := tx.Where("game_id = ?", game.ID).Delete(&models.GameImg{}).Error; err != nil {
+			return err
+		}
+
+		// Create new images
+		if len(game.Images) > 0 {
+			for i := range game.Images {
+				game.Images[i].GameID = game.ID
+			}
+			if err := tx.Create(&game.Images).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *gameRepository) DeleteGenreByName(name string) error {

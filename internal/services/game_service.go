@@ -28,6 +28,7 @@ type GameService interface {
 	GetGenres(ctx context.Context) ([]models.Genre, error)
 	GetPlatforms(ctx context.Context) ([]models.Platform, error)
 	CreateGame(ctx context.Context, req dto.CreateGameRequest) (*models.Game, error)
+	UpdateGame(ctx context.Context, id uint, req dto.CreateGameRequest) (*models.Game, error)
 	DeleteGenre(ctx context.Context, name string) error
 	DeletePlatform(ctx context.Context, name string) error
 	SearchStudios(ctx context.Context, query string) ([]models.Studio, error)
@@ -421,6 +422,135 @@ func (s *gameService) CreateGame(ctx context.Context, req dto.CreateGameRequest)
 	}
 
 	// Invalidate cache
+	s.rdb.Del(ctx, "trending_games:1:12", "trending_games:1:10")
+
+	return game, nil
+}
+
+func (s *gameService) UpdateGame(ctx context.Context, id uint, req dto.CreateGameRequest) (*models.Game, error) {
+	// 1. Tìm game cũ
+	game, err := s.gameRepo.GetByID(id)
+	if err != nil {
+		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy game")
+	}
+
+	// 2. Xử lý Studio
+	var studio models.Studio
+	if req.Studio == "" {
+		req.Studio = "Independent Studio"
+	}
+	if err := s.db.Where("name = ?", req.Studio).FirstOrCreate(&studio, models.Studio{Name: req.Studio, Description: "Studio phát triển tựa game " + req.Title}).Error; err != nil {
+		return nil, err
+	}
+
+	// 3. Xử lý Genres
+	var genres []models.Genre
+	for _, genreName := range req.Genres {
+		if genreName == "" {
+			continue
+		}
+		var g models.Genre
+		if err := s.db.Where("name = ?", genreName).FirstOrCreate(&g, models.Genre{Name: genreName}).Error; err != nil {
+			return nil, err
+		}
+		genres = append(genres, g)
+	}
+
+	// 4. Xử lý Platforms
+	var platforms []models.Platform
+	for _, platName := range req.Platforms {
+		if platName == "" {
+			continue
+		}
+		var p models.Platform
+		if err := s.db.Where("name = ?", platName).FirstOrCreate(&p, models.Platform{Name: platName}).Error; err != nil {
+			return nil, err
+		}
+		platforms = append(platforms, p)
+	}
+
+	// 5. Xử lý ReleaseDate
+	releaseDate := game.ReleaseDate
+	if req.ReleaseDate != "" {
+		if parsed, err := time.Parse("2006-01-02", req.ReleaseDate); err == nil {
+			releaseDate = parsed
+		} else if parsedISO, errISO := time.Parse(time.RFC3339, req.ReleaseDate); errISO == nil {
+			releaseDate = parsedISO
+		}
+	}
+
+	// 6. Xử lý Rating
+	var ratingVal float64
+	if req.Rating != "" {
+		fmt.Sscanf(req.Rating, "%f", &ratingVal)
+	}
+	if ratingVal == 0 {
+		ratingVal = game.AvgRating
+	}
+
+	// Parsing playtimes
+	var averagePlaytime float64
+	var playtimeStory float64
+	var playtimeMaster float64
+	if req.AveragePlaytime != "" {
+		fmt.Sscanf(req.AveragePlaytime, "%f", &averagePlaytime)
+	}
+	if req.PlaytimeStory != "" {
+		fmt.Sscanf(req.PlaytimeStory, "%f", &playtimeStory)
+	}
+	if req.PlaytimeMaster != "" {
+		fmt.Sscanf(req.PlaytimeMaster, "%f", &playtimeMaster)
+	}
+
+	// Cập nhật trường dữ liệu
+	game.Title = req.Title
+	game.Description = req.Description
+	game.ReleaseDate = releaseDate
+	game.StudioID = studio.ID
+	game.AvgRating = ratingVal
+	game.AveragePlaytime = averagePlaytime
+	game.PlaytimeStory = playtimeStory
+	game.PlaytimeCompletionist = playtimeMaster
+	game.Genres = genres
+	game.Platforms = platforms
+
+	// Xử lý Hình ảnh
+	var gameImages []models.GameImg
+	if req.Images.Header != "" {
+		gameImages = append(gameImages, models.GameImg{
+			OgURL:   req.Images.Header,
+			Thumb:   req.Images.Header,
+			ImgType: "header",
+			GameID:  game.ID,
+		})
+	}
+	if req.Images.Main != "" {
+		gameImages = append(gameImages, models.GameImg{
+			OgURL:   req.Images.Main,
+			Thumb:   req.Images.Main,
+			ImgType: "cover",
+			GameID:  game.ID,
+		})
+	}
+	for _, ss := range req.Screenshots {
+		if ss == "" {
+			continue
+		}
+		gameImages = append(gameImages, models.GameImg{
+			OgURL:   ss,
+			Thumb:   ss,
+			ImgType: "screenshot",
+			GameID:  game.ID,
+		})
+	}
+	game.Images = gameImages
+
+	// 7. Lưu thay đổi
+	if err := s.gameRepo.UpdateGame(game); err != nil {
+		return nil, err
+	}
+
+	// 8. Xóa cache
 	s.rdb.Del(ctx, "trending_games:1:12", "trending_games:1:10")
 
 	return game, nil

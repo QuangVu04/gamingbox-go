@@ -468,6 +468,55 @@ func (h *GameHandler) CreateGame(c *gin.Context) {
 	})
 }
 
+// UpdateGame godoc
+// @Summary      Cập nhật Game (Admin)
+// @Description  Cập nhật thông tin của game đã có
+// @Tags         Games
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "ID của Game"
+// @Param        request body dto.CreateGameRequest true "Thông tin game cần cập nhật"
+// @Success      200  {object}  interface{}
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      404  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games/{id} [put]
+func (h *GameHandler) UpdateGame(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	var req dto.CreateGameRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "Dữ liệu gửi lên không hợp lệ: " + err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	game, err := h.gameService.UpdateGame(ctx, uint(id), req)
+	if err != nil {
+		if serviceErr, ok := err.(*dto.ServiceError); ok && serviceErr.Code == "NOT_FOUND" {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "error": serviceErr.Message})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Không thể cập nhật game: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data": gin.H{
+			"id":           game.ID,
+			"title":        game.Title,
+			"release_date": game.ReleaseDate,
+		},
+	})
+}
+
 // DeleteGenre godoc
 // @Summary      Xóa Thể loại (Admin)
 // @Description  Xóa vĩnh viễn một thể loại khỏi hệ thống

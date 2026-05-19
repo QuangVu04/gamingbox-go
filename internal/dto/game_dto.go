@@ -58,6 +58,9 @@ type GameDetailResponse struct {
 	Genres                []GenreDTO               `json:"genres"`
 	Platforms             []PlatformDTO            `json:"platforms"`
 	Images                []string                 `json:"images"`
+	HeaderImage           string                   `json:"header_image,omitempty"`
+	CoverImage            string                   `json:"cover_image,omitempty"`
+	Screenshots           []string                 `json:"screenshots,omitempty"`
 	PopularReviews        []ReviewCompactResponse `json:"popular_reviews"`
 	RecentReviews         []ReviewCompactResponse `json:"recent_reviews"`
 	MoreFromStudio        []GameTrendingResponse  `json:"more_from_studio"`

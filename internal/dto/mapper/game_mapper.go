@@ -103,8 +103,19 @@ func ToGameDetailResponse(game *models.Game) *dto.GameDetailResponse {
 	}
 
 	images := make([]string, 0, len(game.Images))
+	screenshots := make([]string, 0)
+	var headerImage string
+	var coverImage string
+
 	for _, img := range game.Images {
 		images = append(images, img.OgURL)
+		if img.ImgType == "header" {
+			headerImage = img.OgURL
+		} else if img.ImgType == "cover" {
+			coverImage = img.OgURL
+		} else if img.ImgType == "screenshot" {
+			screenshots = append(screenshots, img.OgURL)
+		}
 	}
 
 	var studio *dto.StudioDTO
@@ -133,6 +144,9 @@ func ToGameDetailResponse(game *models.Game) *dto.GameDetailResponse {
 		Genres:                genres,
 		Platforms:             platforms,
 		Images:                images,
+		HeaderImage:           headerImage,
+		CoverImage:            coverImage,
+		Screenshots:           screenshots,
 	}
 }
 
