@@ -41,25 +41,27 @@ type StudioDTO struct {
 }
 
 type GameDetailResponse struct {
-	ID              uint                     `json:"id"`
-	SteamID         int                      `json:"steam_id"`
-	Title           string                   `json:"title"`
-	Description     string                   `json:"description"`
-	ReleaseDate     time.Time                `json:"release_date"`
-	Price           float64                  `json:"price"`
-	IsFree          bool                     `json:"is_free"`
-	AvgRating       float64                  `json:"avg_rating"`
-	ReviewCount     int                      `json:"review_count"`
-	LikeCount       int                      `json:"like_count"`
-	AveragePlaytime float64                  `json:"average_playtime"`
-	Studio          *StudioDTO               `json:"studio"`
-	Genres          []GenreDTO               `json:"genres"`
-	Platforms       []PlatformDTO            `json:"platforms"`
-	Images          []string                 `json:"images"`
-	PopularReviews  []ReviewCompactResponse `json:"popular_reviews"`
-	RecentReviews   []ReviewCompactResponse `json:"recent_reviews"`
-	MoreFromStudio  []GameTrendingResponse  `json:"more_from_studio"`
-	SimilarGames    []GameTrendingResponse  `json:"similar_games"`
+	ID                    uint                     `json:"id"`
+	SteamID               int                      `json:"steam_id"`
+	Title                 string                   `json:"title"`
+	Description           string                   `json:"description"`
+	ReleaseDate           time.Time                `json:"release_date"`
+	Price                 float64                  `json:"price"`
+	IsFree                bool                     `json:"is_free"`
+	AvgRating             float64                  `json:"avg_rating"`
+	ReviewCount           int                      `json:"review_count"`
+	LikeCount             int                      `json:"like_count"`
+	AveragePlaytime       float64                  `json:"average_playtime"`
+	PlaytimeStory         float64                  `json:"playtime_story"`
+	PlaytimeCompletionist float64                  `json:"playtime_completionist"`
+	Studio                *StudioDTO               `json:"studio"`
+	Genres                []GenreDTO               `json:"genres"`
+	Platforms             []PlatformDTO            `json:"platforms"`
+	Images                []string                 `json:"images"`
+	PopularReviews        []ReviewCompactResponse `json:"popular_reviews"`
+	RecentReviews         []ReviewCompactResponse `json:"recent_reviews"`
+	MoreFromStudio        []GameTrendingResponse  `json:"more_from_studio"`
+	SimilarGames          []GameTrendingResponse  `json:"similar_games"`
 }
 
 type PaginationDTO struct {
@@ -70,14 +72,17 @@ type PaginationDTO struct {
 }
 
 type CreateGameRequest struct {
-	Title       string   `json:"title" binding:"required"`
-	Description string   `json:"description"`
-	ReleaseDate string   `json:"releaseDate"`
-	Studio      string   `json:"studio"`
-	Rating      string   `json:"rating"`
-	Platforms   []string `json:"platforms"`
-	Genres      []string `json:"genres"`
-	Images      struct {
+	Title           string   `json:"title" binding:"required"`
+	Description     string   `json:"description"`
+	ReleaseDate     string   `json:"releaseDate"`
+	Studio          string   `json:"studio"`
+	Rating          string   `json:"rating"`
+	Platforms       []string `json:"platforms"`
+	Genres          []string `json:"genres"`
+	AveragePlaytime string   `json:"averagePlaytime"`
+	PlaytimeStory   string   `json:"playtimeStory"`
+	PlaytimeMaster  string   `json:"playtimeMaster"`
+	Images          struct {
 		Header string `json:"header"` // Banner chính
 		Main   string `json:"main"`   // Ảnh bìa cover
 	} `json:"images"`

@@ -24,7 +24,9 @@ type GameRepository interface {
 	CreateGame(game *models.Game) error
 	DeleteGenreByName(name string) error
 	DeletePlatformByName(name string) error
+	SearchStudios(query string) ([]models.Studio, error)
 }
+
 
 type gameRepository struct {
 	db *gorm.DB
@@ -378,4 +380,14 @@ func (r *gameRepository) DeleteGenreByName(name string) error {
 func (r *gameRepository) DeletePlatformByName(name string) error {
 	r.db.Exec("DELETE FROM game_platforms WHERE platform_id IN (SELECT id FROM platforms WHERE name = ?)", name)
 	return r.db.Where("name = ?", name).Delete(&models.Platform{}).Error
+}
+
+func (r *gameRepository) SearchStudios(query string) ([]models.Studio, error) {
+	var studios []models.Studio
+	tx := r.db.Order("name ASC").Limit(20)
+	if query != "" {
+		tx = tx.Where("name LIKE ?", "%"+query+"%")
+	}
+	err := tx.Find(&studios).Error
+	return studios, err
 }

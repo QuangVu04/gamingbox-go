@@ -12,14 +12,16 @@ type Game struct {
 	Title           string `gorm:"not null"`
 	Description     string `gorm:"type:text"`
 	ReleaseDate     time.Time
-	Price           float64
-	IsFree          bool    `gorm:"default:false"`
-	AvgRating       float64 `gorm:"default:0"`
-	ReviewCount     int     `gorm:"default:0"`
-	LikeCount       int     `gorm:"default:0"`
-	RatingBreakdown []byte  `gorm:"type:json"`
-	AveragePlaytime float64
-	StudioID        uint
+	Price                 float64
+	IsFree                bool    `gorm:"default:false"`
+	AvgRating             float64 `gorm:"default:0"`
+	ReviewCount           int     `gorm:"default:0"`
+	LikeCount             int     `gorm:"default:0"`
+	RatingBreakdown       []byte  `gorm:"type:json"`
+	AveragePlaytime       float64
+	PlaytimeStory         float64
+	PlaytimeCompletionist float64
+	StudioID              uint
 
 	Studio    Studio     `gorm:"foreignKey:StudioID"`
 	Images    []GameImg  `gorm:"foreignKey:GameID"`

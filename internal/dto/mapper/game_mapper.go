@@ -116,21 +116,23 @@ func ToGameDetailResponse(game *models.Game) *dto.GameDetailResponse {
 	}
 
 	return &dto.GameDetailResponse{
-		ID:              game.ID,
-		SteamID:         game.SteamID,
-		Title:           game.Title,
-		Description:     game.Description,
-		ReleaseDate:     game.ReleaseDate,
-		Price:           game.Price,
-		IsFree:          game.IsFree,
-		AvgRating:       game.AvgRating,
-		ReviewCount:     game.ReviewCount,
-		LikeCount:       game.LikeCount,
-		AveragePlaytime: game.AveragePlaytime,
-		Studio:          studio,
-		Genres:          genres,
-		Platforms:       platforms,
-		Images:          images,
+		ID:                    game.ID,
+		SteamID:               game.SteamID,
+		Title:                 game.Title,
+		Description:           game.Description,
+		ReleaseDate:           game.ReleaseDate,
+		Price:                 game.Price,
+		IsFree:                game.IsFree,
+		AvgRating:             game.AvgRating,
+		ReviewCount:           game.ReviewCount,
+		LikeCount:             game.LikeCount,
+		AveragePlaytime:       game.AveragePlaytime,
+		PlaytimeStory:         game.PlaytimeStory,
+		PlaytimeCompletionist: game.PlaytimeCompletionist,
+		Studio:                studio,
+		Genres:                genres,
+		Platforms:             platforms,
+		Images:                images,
 	}
 }
 

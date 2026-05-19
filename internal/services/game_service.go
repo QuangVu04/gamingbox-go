@@ -30,7 +30,9 @@ type GameService interface {
 	CreateGame(ctx context.Context, req dto.CreateGameRequest) (*models.Game, error)
 	DeleteGenre(ctx context.Context, name string) error
 	DeletePlatform(ctx context.Context, name string) error
+	SearchStudios(ctx context.Context, query string) ([]models.Studio, error)
 }
+
 
 type gameService struct {
 	gameRepo   repositories.GameRepository
@@ -340,17 +342,34 @@ func (s *gameService) CreateGame(ctx context.Context, req dto.CreateGameRequest)
 		ratingVal = 4.5
 	}
 
+	// Parsing playtimes
+	var averagePlaytime float64
+	var playtimeStory float64
+	var playtimeMaster float64
+	if req.AveragePlaytime != "" {
+		fmt.Sscanf(req.AveragePlaytime, "%f", &averagePlaytime)
+	}
+	if req.PlaytimeStory != "" {
+		fmt.Sscanf(req.PlaytimeStory, "%f", &playtimeStory)
+	}
+	if req.PlaytimeMaster != "" {
+		fmt.Sscanf(req.PlaytimeMaster, "%f", &playtimeMaster)
+	}
+
 	// 6. Khởi tạo đối tượng Game
 	game := &models.Game{
-		Title:       req.Title,
-		Description: req.Description,
-		ReleaseDate: releaseDate,
-		StudioID:    studio.ID,
-		AvgRating:   ratingVal,
-		ReviewCount: 1, // Để hiển thị đẹp
-		LikeCount:   10,
-		Genres:      genres,
-		Platforms:   platforms,
+		Title:                 req.Title,
+		Description:           req.Description,
+		ReleaseDate:           releaseDate,
+		StudioID:              studio.ID,
+		AvgRating:             ratingVal,
+		ReviewCount:           1, // Để hiển thị đẹp
+		LikeCount:             10,
+		AveragePlaytime:       averagePlaytime,
+		PlaytimeStory:         playtimeStory,
+		PlaytimeCompletionist: playtimeMaster,
+		Genres:                genres,
+		Platforms:             platforms,
 	}
 
 	// 7. Lưu Game vào DB
@@ -406,3 +425,8 @@ func (s *gameService) DeleteGenre(ctx context.Context, name string) error {
 func (s *gameService) DeletePlatform(ctx context.Context, name string) error {
 	return s.gameRepo.DeletePlatformByName(name)
 }
+
+func (s *gameService) SearchStudios(ctx context.Context, query string) ([]models.Studio, error) {
+	return s.gameRepo.SearchStudios(query)
+}
+

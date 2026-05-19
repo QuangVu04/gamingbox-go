@@ -76,6 +76,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		games.GET("/steam-detail", gameHandler.GetSteamAppDetails)
 		games.GET("/genres", gameHandler.GetGenres)
 		games.GET("/platforms", gameHandler.GetPlatforms)
+		games.GET("/studios", gameHandler.SearchStudios)
+		games.GET("/steam-studios", gameHandler.SearchSteamStudios)
 		games.GET("/:id", gameHandler.GetGameDetail)
 		games.GET("/:id/likes", likeHandler.GetGameLikes)
 		games.GET("/:id/reviews", reviewHandler.GetGameReviews)

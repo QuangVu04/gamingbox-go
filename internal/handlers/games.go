@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 
 	"vault/be/internal/dto"
 	"vault/be/internal/middleware"
@@ -289,6 +293,141 @@ func (h *GameHandler) GetPlatforms(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "data": platforms})
 }
+
+// SearchStudios godoc
+// @Summary      Tìm kiếm nhà phát triển (Studio)
+// @Description  Tìm kiếm danh sách nhà phát triển/studio trong database theo từ khóa
+// @Tags         Games
+// @Produce      json
+// @Param        q query string false "Từ khóa tìm kiếm"
+// @Success      200  {object}  interface{}
+// @Router       /games/studios [get]
+func (h *GameHandler) SearchStudios(c *gin.Context) {
+	query := c.Query("q")
+	ctx := context.Background()
+	studios, err := h.gameService.SearchStudios(ctx, query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể tìm kiếm nhà phát triển"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": studios})
+}
+
+// SearchSteamStudios godoc
+// @Summary      Tìm kiếm tên studio/nhà phát triển từ Steam Store
+// @Description  Tra cứu tên nhà phát triển/studio chính xác từ Steam thông qua storesearch và store web search
+// @Tags         Games
+// @Produce      json
+// @Param        q query string true "Từ khóa tên studio"
+// @Success      200  {object}  interface{}
+// @Router       /games/steam-studios [get]
+func (h *GameHandler) SearchSteamStudios(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu từ khóa tìm kiếm studio"})
+		return
+	}
+
+	var appIDs []int
+	seenApp := make(map[int]bool)
+
+	// 1. Thử tìm kiếm qua API storesearch (phù hợp khi gõ tên game hoặc từ khóa chung)
+	searchURL := "https://store.steampowered.com/api/storesearch/?term=" + url.QueryEscape(query) + "&l=vietnamese&cc=VN"
+	if resp, err := http.Get(searchURL); err == nil {
+		defer resp.Body.Close()
+		if body, err := io.ReadAll(resp.Body); err == nil {
+			var searchResult struct {
+				Items []struct {
+					ID int `json:"id"`
+				} `json:"items"`
+			}
+			if json.Unmarshal(body, &searchResult) == nil {
+				for _, item := range searchResult.Items {
+					if !seenApp[item.ID] {
+						seenApp[item.ID] = true
+						appIDs = append(appIDs, item.ID)
+						if len(appIDs) >= 4 {
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Nếu API storesearch không ra kết quả (ví dụ gõ tên riêng studio như Atlus, EA, SEGA),
+	// tự động cào trang tìm kiếm web của Steam (nơi có index toàn bộ tên developer/publisher!)
+	if len(appIDs) == 0 {
+		webSearchURL := "https://store.steampowered.com/search/?term=" + url.QueryEscape(query)
+		if webResp, err := http.Get(webSearchURL); err == nil {
+			defer webResp.Body.Close()
+			if webBody, err := io.ReadAll(webResp.Body); err == nil {
+				re := regexp.MustCompile(`https://store\.steampowered\.com/app/(\d+)`)
+				matches := re.FindAllStringSubmatch(string(webBody), -1)
+				for _, m := range matches {
+					if id, err := strconv.Atoi(m[1]); err == nil && !seenApp[id] {
+						seenApp[id] = true
+						appIDs = append(appIDs, id)
+						if len(appIDs) >= 4 {
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(appIDs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"status": "success", "data": []string{}})
+		return
+	}
+
+	// 3. Lấy chi tiết các app để trích xuất developers và publishers chính chủ
+	studioMap := make(map[string]bool)
+	var studios []string
+
+	for _, appID := range appIDs {
+		detailURL := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%d&l=vietnamese", appID)
+		dResp, err := http.Get(detailURL)
+		if err != nil {
+			continue
+		}
+		dBody, err := io.ReadAll(dResp.Body)
+		dResp.Body.Close()
+		if err != nil {
+			continue
+		}
+
+		var detailResult map[string]struct {
+			Success bool `json:"success"`
+			Data    struct {
+				Developers []string `json:"developers"`
+				Publishers []string `json:"publishers"`
+			} `json:"data"`
+		}
+
+		if err := json.Unmarshal(dBody, &detailResult); err == nil {
+			appKey := fmt.Sprintf("%d", appID)
+			if appObj, exists := detailResult[appKey]; exists && appObj.Success {
+				for _, dev := range appObj.Data.Developers {
+					if dev != "" && !studioMap[dev] {
+						studioMap[dev] = true
+						studios = append(studios, dev)
+					}
+				}
+				for _, pub := range appObj.Data.Publishers {
+					if pub != "" && !studioMap[pub] {
+						studioMap[pub] = true
+						studios = append(studios, pub)
+					}
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "data": studios})
+}
+
 
 // CreateGame godoc
 // @Summary      Thêm Game mới (Admin)
