@@ -214,5 +214,86 @@ func (r *userRepository) GetAdminUsers(page, limit int, search, role, sort strin
 }
 
 func (r *userRepository) Delete(id uint) error {
-	return r.db.Delete(&models.User{}, id).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Find all lists of this user
+		var listIDs []uint
+		if err := tx.Model(&models.List{}).Where("user_id = ?", id).Pluck("id", &listIDs).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete all list entries belonging to those lists
+		if len(listIDs) > 0 {
+			if err := tx.Exec("DELETE FROM list_entries WHERE list_id IN ?", listIDs).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Delete all lists
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.List{}).Error; err != nil {
+			return err
+		}
+
+		// 4. Find all reviews of this user
+		var reviewIDs []uint
+		if err := tx.Model(&models.Review{}).Where("user_id = ?", id).Pluck("id", &reviewIDs).Error; err != nil {
+			return err
+		}
+
+		// 5. Delete comments on user's reviews, or comments written by user
+		if len(reviewIDs) > 0 {
+			if err := tx.Unscoped().Where("review_id IN ?", reviewIDs).Delete(&models.Comment{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.Comment{}).Error; err != nil {
+			return err
+		}
+
+		// 6. Delete likes on user's reviews, or likes written by user
+		if len(reviewIDs) > 0 {
+			if err := tx.Exec("DELETE FROM likes WHERE target_type = 'review' AND target_id IN ?", reviewIDs).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Exec("DELETE FROM likes WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 7. Delete all reviews of this user
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.Review{}).Error; err != nil {
+			return err
+		}
+
+		// 8. Delete all ratings by this user
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.Rating{}).Error; err != nil {
+			return err
+		}
+
+		// 9. Delete all game logs by this user
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.GameLog{}).Error; err != nil {
+			return err
+		}
+
+		// 10. Delete follows where user is follower or following
+		if err := tx.Unscoped().Where("follower_id = ? OR following_id = ?", id, id).Delete(&models.Follow{}).Error; err != nil {
+			return err
+		}
+
+		// 11. Delete notifications received or sent by this user
+		if err := tx.Unscoped().Where("receiver_id = ? OR sender_id = ?", id, id).Delete(&models.Notification{}).Error; err != nil {
+			return err
+		}
+
+		// 12. Delete activity logs of this user
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.ActivityLog{}).Error; err != nil {
+			return err
+		}
+
+		// 13. Delete the user record
+		if err := tx.Unscoped().Delete(&models.User{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

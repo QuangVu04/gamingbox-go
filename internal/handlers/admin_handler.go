@@ -194,6 +194,67 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	utils.Success(c, http.StatusOK, gin.H{"message": "Xóa người dùng thành công"})
 }
 
+func (h *AdminHandler) DeleteReview(c *gin.Context) {
+	idStr := c.Param("id")
+	reviewID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID đánh giá không hợp lệ")
+		return
+	}
+
+	if err := h.adminService.DeleteReview(uint(reviewID)); err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"message": "Xóa đánh giá thành công"})
+}
+
+func (h *AdminHandler) DeleteList(c *gin.Context) {
+	idStr := c.Param("id")
+	listID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID danh sách không hợp lệ")
+		return
+	}
+
+	if err := h.adminService.DeleteList(uint(listID)); err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"message": "Xóa danh sách thành công"})
+}
+
+func (h *AdminHandler) UpdateUser(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID người dùng không hợp lệ")
+		return
+	}
+
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
+		Role     string `json:"role" binding:"required"`
+		Status   string `json:"status" binding:"required"`
+		Bio      string `json:"bio"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	err = h.adminService.UpdateUser(uint(userID), req.Username, req.Email, req.Role, req.Status, req.Bio)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", err.Error())
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"message": "Cập nhật người dùng thành công"})
+}
+
 func (h *AdminHandler) GetUserOverview(c *gin.Context) {
 	idStr := c.Param("id")
 	userID, err := strconv.ParseUint(idStr, 10, 32)

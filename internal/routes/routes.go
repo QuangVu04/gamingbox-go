@@ -148,6 +148,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		admin.GET("/chart", adminHandler.GetActivityChart)
 		admin.GET("/games", adminHandler.GetGames)
 		admin.GET("/activities", adminHandler.GetAdminActivities)
+		admin.DELETE("/reviews/:id", adminHandler.DeleteReview)
+		admin.DELETE("/lists/:id", adminHandler.DeleteList)
 		users := admin.Group("/users")
 		{
 			users.GET("", adminHandler.GetUsers)
@@ -160,6 +162,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 			users.GET("/:id/games", adminHandler.GetUserGamesPaginated)
 			users.PATCH("/:id/status", adminHandler.UpdateStatus)
 			users.PATCH("/:id/role", adminHandler.UpdateRole)
+			users.PUT("/:id", adminHandler.UpdateUser)
 			users.DELETE("/:id", adminHandler.DeleteUser)
 		}
 	}

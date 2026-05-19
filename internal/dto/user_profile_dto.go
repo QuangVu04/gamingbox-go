@@ -38,6 +38,7 @@ type ListSummary struct {
 	LikeCount int       `json:"like_count"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Thumbnail string    `json:"thumbnail"`
+	Thumbnails []string  `json:"thumbnails"`
 }
 
 type FollowRequest struct {

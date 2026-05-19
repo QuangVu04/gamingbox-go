@@ -5,6 +5,7 @@ import (
 	"time"
 	"vault/be/internal/dto"
 	"vault/be/internal/dto/mapper"
+	"vault/be/internal/models"
 	"vault/be/internal/repositories"
 )
 
@@ -14,6 +15,9 @@ type AdminService interface {
 	GetAdminGames(page, limit int, search, category, platform, minRating, startDate, endDate, sort string) ([]dto.GameAdminResponse, int64, error)
 	GetAdminUsers(page, limit int, search, role, sort string) ([]dto.UserAdminResponse, int64, error)
 	DeleteUser(id uint) error
+	UpdateUser(id uint, username, email, role, status, bio string) error
+	DeleteReview(id uint) error
+	DeleteList(id uint) error
 	GetUserDetailOverview(userID uint) (*dto.UserDetailOverviewResponse, error)
 	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
 	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
@@ -583,5 +587,28 @@ func (s *adminService) GetUserLibraryGames(userID uint, page, limit int) (*dto.P
 		},
 		Data: data,
 	}, nil
+}
+
+func (s *adminService) UpdateUser(id uint, username, email, role, status, bio string) error {
+	user, err := s.userRepo.FindByID(id)
+	if err != nil {
+		return fmt.Errorf("người dùng không tồn tại: %w", err)
+	}
+
+	user.Username = username
+	user.Email = email
+	user.Role = models.UserRole(role)
+	user.Status = status
+	user.Bio = &bio
+
+	return s.userRepo.Update(user)
+}
+
+func (s *adminService) DeleteReview(id uint) error {
+	return s.reviewRepo.Delete(id)
+}
+
+func (s *adminService) DeleteList(id uint) error {
+	return s.listRepo.Delete(id)
 }
 
