@@ -556,3 +556,34 @@ func (h *GameHandler) DeletePlatform(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Đã xóa nền tảng thành công"})
 }
+
+// DeleteGame godoc
+// @Summary      Xóa Game (Admin)
+// @Description  Xóa vĩnh viễn game và tất cả dữ liệu liên quan khỏi hệ thống
+// @Tags         Games
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path int true "ID của Game"
+// @Success      200  {object}  interface{}
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /games/{id} [delete]
+func (h *GameHandler) DeleteGame(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	if err := h.gameService.DeleteGame(ctx, uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Không thể xóa game: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Đã xóa game và tất cả dữ liệu liên quan thành công",
+	})
+}

@@ -32,6 +32,7 @@ type GameService interface {
 	DeleteGenre(ctx context.Context, name string) error
 	DeletePlatform(ctx context.Context, name string) error
 	SearchStudios(ctx context.Context, query string) ([]models.Studio, error)
+	DeleteGame(ctx context.Context, id uint) error
 }
 
 
@@ -566,5 +567,16 @@ func (s *gameService) DeletePlatform(ctx context.Context, name string) error {
 
 func (s *gameService) SearchStudios(ctx context.Context, query string) ([]models.Studio, error) {
 	return s.gameRepo.SearchStudios(query)
+}
+
+func (s *gameService) DeleteGame(ctx context.Context, id uint) error {
+	// Call repository to perform deletion inside transaction
+	if err := s.gameRepo.DeleteGame(id); err != nil {
+		return err
+	}
+
+	// Invalidate cache
+	s.rdb.Del(ctx, "trending_games:1:12", "trending_games:1:10")
+	return nil
 }
 

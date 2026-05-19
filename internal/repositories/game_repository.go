@@ -26,6 +26,7 @@ type GameRepository interface {
 	DeleteGenreByName(name string) error
 	DeletePlatformByName(name string) error
 	SearchStudios(query string) ([]models.Studio, error)
+	DeleteGame(id uint) error
 }
 
 
@@ -425,4 +426,89 @@ func (r *gameRepository) SearchStudios(query string) ([]models.Studio, error) {
 	}
 	err := tx.Find(&studios).Error
 	return studios, err
+}
+
+func (r *gameRepository) DeleteGame(id uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Find all reviews for this game
+		var reviewIDs []uint
+		if err := tx.Model(&models.Review{}).Where("target_id = ? AND target_type = ?", id, "game").Pluck("id", &reviewIDs).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete comments belonging to these reviews
+		if len(reviewIDs) > 0 {
+			if err := tx.Unscoped().Where("review_id IN ?", reviewIDs).Delete(&models.Comment{}).Error; err != nil {
+				return err
+			}
+			// Delete likes on these reviews
+			if err := tx.Where("target_id IN ? AND target_type = ?", reviewIDs, "review").Delete(&models.Like{}).Error; err != nil {
+				return err
+			}
+			// Delete activity logs referencing these reviews
+			if err := tx.Where("target_id IN ? AND target_type = ?", reviewIDs, "review").Delete(&models.ActivityLog{}).Error; err != nil {
+				return err
+			}
+			// Delete notifications referencing these reviews
+			if err := tx.Where("target_id IN ? AND target_type = ?", reviewIDs, "review").Delete(&models.Notification{}).Error; err != nil {
+				return err
+			}
+			// Delete the reviews themselves
+			if err := tx.Unscoped().Where("id IN ?", reviewIDs).Delete(&models.Review{}).Error; err != nil {
+				return err
+			}
+		}
+
+		// 3. Delete ratings of this game
+		if err := tx.Where("game_id = ?", id).Delete(&models.Rating{}).Error; err != nil {
+			return err
+		}
+
+		// 4. Delete game logs of this game
+		if err := tx.Where("game_id = ?", id).Delete(&models.GameLog{}).Error; err != nil {
+			return err
+		}
+
+		// 5. Delete list entries of this game
+		if err := tx.Where("game_id = ?", id).Delete(&models.ListEntry{}).Error; err != nil {
+			return err
+		}
+
+		// 6. Delete likes on this game
+		if err := tx.Where("target_id = ? AND target_type = ?", id, "game").Delete(&models.Like{}).Error; err != nil {
+			return err
+		}
+
+		// 7. Delete activity logs referencing this game
+		if err := tx.Where("target_id = ? AND target_type = ?", id, "game").Delete(&models.ActivityLog{}).Error; err != nil {
+			return err
+		}
+
+		// 8. Delete notifications referencing this game
+		if err := tx.Where("target_id = ? AND target_type = ?", id, "game").Delete(&models.Notification{}).Error; err != nil {
+			return err
+		}
+
+		// 9. Delete game images
+		if err := tx.Where("game_id = ?", id).Delete(&models.GameImg{}).Error; err != nil {
+			return err
+		}
+
+		// 10. Delete game genres association
+		if err := tx.Exec("DELETE FROM game_genres WHERE game_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 11. Delete game platforms association
+		if err := tx.Exec("DELETE FROM game_platforms WHERE game_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 12. Delete the game itself
+		if err := tx.Unscoped().Delete(&models.Game{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
