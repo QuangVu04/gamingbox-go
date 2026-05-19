@@ -587,3 +587,34 @@ func (h *GameHandler) DeleteGame(c *gin.Context) {
 		"message": "Đã xóa game và tất cả dữ liệu liên quan thành công",
 	})
 }
+
+// GetStudioDetail godoc
+// @Summary      Lấy chi tiết Studio
+// @Description  Lấy thông tin đầy đủ của một studio và danh sách game của họ
+// @Tags         Games
+// @Produce      json
+// @Param        id path int true "ID của Studio"
+// @Success      200  {object}  dto.SuccessResponse[dto.StudioDetailResponse]
+// @Failure      404  {object}  dto.ErrorResponse
+// @Router       /studios/{id} [get]
+func (h *GameHandler) GetStudioDetail(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	studio, err := h.gameService.GetStudioDetail(ctx, uint(id))
+	if err != nil {
+		if serviceErr, ok := err.(*dto.ServiceError); ok && serviceErr.Code == "NOT_FOUND" {
+			utils.Error(c, http.StatusNotFound, "NOT_FOUND", serviceErr.Message)
+			return
+		}
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", "lỗi lấy thông tin studio")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, studio)
+}

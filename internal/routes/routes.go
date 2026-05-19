@@ -125,6 +125,11 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		}
 	}
 
+	studios := v1.Group("/studios")
+	{
+		studios.GET("/:id", gameHandler.GetStudioDetail)
+	}
+
 	likesGroup := v1.Group("")
 	likesGroup.Use(middleware.Authenticate())
 	{

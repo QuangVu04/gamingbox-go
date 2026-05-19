@@ -32,6 +32,7 @@ type GameService interface {
 	DeleteGenre(ctx context.Context, name string) error
 	DeletePlatform(ctx context.Context, name string) error
 	SearchStudios(ctx context.Context, query string) ([]models.Studio, error)
+	GetStudioDetail(ctx context.Context, id uint) (*dto.StudioDetailResponse, error)
 	DeleteGame(ctx context.Context, id uint) error
 }
 
@@ -197,6 +198,56 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 	resp.RecentReviews = recentDTOs
 	resp.MoreFromStudio = studioDTOs
 	resp.SimilarGames = similarDTOs
+
+	// Fetch dynamic stats from database
+	var playsCount int64
+	var playingCount int64
+	var backlogCount int64
+	var wishlistCount int64
+	var listsCount int64
+	var ratingCount int64
+
+	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "completed").Count(&playsCount)
+	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "playing").Count(&playingCount)
+	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "backlog").Count(&backlogCount)
+	
+	s.db.Table("list_entries").
+		Joins("JOIN lists ON lists.id = list_entries.list_id").
+		Where("list_entries.game_id = ? AND lists.title = ?", id, "Muốn chơi").
+		Count(&wishlistCount)
+
+	s.db.Model(&models.ListEntry{}).Where("game_id = ?", id).Count(&listsCount)
+	s.db.Model(&models.Rating{}).Where("game_id = ?", id).Count(&ratingCount)
+
+	distribution := []int{0, 0, 0, 0, 0}
+	var ratingRows []struct {
+		Star  int
+		Count int
+	}
+	s.db.Model(&models.Rating{}).
+		Select("ROUND(rating) as star, COUNT(*) as count").
+		Where("game_id = ?", id).
+		Group("star").
+		Scan(&ratingRows)
+
+	for _, row := range ratingRows {
+		starIdx := row.Star - 1
+		if starIdx >= 0 && starIdx < 5 {
+			distribution[starIdx] = row.Count
+		} else if starIdx < 0 {
+			distribution[0] += row.Count
+		} else if starIdx >= 5 {
+			distribution[4] += row.Count
+		}
+	}
+
+	resp.PlaysCount = int(playsCount)
+	resp.PlayingCount = int(playingCount)
+	resp.BacklogCount = int(backlogCount)
+	resp.WishlistCount = int(wishlistCount)
+	resp.ListsCount = int(listsCount)
+	resp.RatingCount = int(ratingCount)
+	resp.RatingDistribution = distribution
 
 	return resp, nil
 }
@@ -373,8 +424,8 @@ func (s *gameService) CreateGame(ctx context.Context, req dto.CreateGameRequest)
 		ReleaseDate:           releaseDate,
 		StudioID:              studio.ID,
 		AvgRating:             ratingVal,
-		ReviewCount:           1, // Để hiển thị đẹp
-		LikeCount:             10,
+		ReviewCount:           0,
+		LikeCount:             0,
 		AveragePlaytime:       averagePlaytime,
 		PlaytimeStory:         playtimeStory,
 		PlaytimeCompletionist: playtimeMaster,
@@ -578,5 +629,31 @@ func (s *gameService) DeleteGame(ctx context.Context, id uint) error {
 	// Invalidate cache
 	s.rdb.Del(ctx, "trending_games:1:12", "trending_games:1:10")
 	return nil
+}
+
+func (s *gameService) GetStudioDetail(ctx context.Context, id uint) (*dto.StudioDetailResponse, error) {
+	var studio models.Studio
+	if err := s.db.WithContext(ctx).First(&studio, id).Error; err != nil {
+		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy studio")
+	}
+
+	var games []models.Game
+	if err := s.db.WithContext(ctx).
+		Preload("Images", "img_type IN ?", []string{"header", "cover"}).
+		Preload("Studio").
+		Joins("JOIN studios ON studios.id = games.studio_id").
+		Where("studios.name = ?", studio.Name).
+		Find(&games).Error; err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "lỗi lấy danh sách game")
+	}
+
+	gameDTOs := mapper.ToSimpleGameResponses(games)
+
+	return &dto.StudioDetailResponse{
+		ID:          studio.ID,
+		Name:        studio.Name,
+		Description: studio.Description,
+		Games:       gameDTOs,
+	}, nil
 }
 

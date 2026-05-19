@@ -65,6 +65,20 @@ type GameDetailResponse struct {
 	RecentReviews         []ReviewCompactResponse `json:"recent_reviews"`
 	MoreFromStudio        []GameTrendingResponse  `json:"more_from_studio"`
 	SimilarGames          []GameTrendingResponse  `json:"similar_games"`
+	PlaysCount            int                     `json:"plays_count"`
+	PlayingCount          int                     `json:"playing_count"`
+	BacklogCount          int                     `json:"backlog_count"`
+	WishlistCount         int                     `json:"wishlist_count"`
+	RatingCount           int                     `json:"rating_count"`
+	ListsCount            int                     `json:"lists_count"`
+	RatingDistribution    []int                   `json:"rating_distribution"`
+}
+
+type StudioDetailResponse struct {
+	ID          uint                   `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Games       []GameTrendingResponse `json:"games"`
 }
 
 type PaginationDTO struct {
