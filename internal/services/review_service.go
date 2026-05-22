@@ -112,23 +112,7 @@ func (s *reviewService) GetTrendingReviews(ctx context.Context, page, limit int)
 }
 
 func (s *reviewService) CreateReview(ctx context.Context, userID uint, req dto.CreateReviewRequest) (*dto.ReviewTrendingResponse, error) {
-	existing, err := s.reviewRepo.FindByUserAndGame(userID, req.GameID)
-	if err == nil && existing != nil {
-		existing.Content = req.Content
-		existing.Recommend = req.Recommend
-		existing.IsSpoiler = req.IsSpoiler
-		if err := s.reviewRepo.Update(existing); err != nil {
-			return nil, dto.NewServiceError("DATABASE_ERROR", "không thể cập nhật review")
-		}
-
-		fullReview, err := s.reviewRepo.FindByID(existing.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		commentCounts, _ := s.reviewRepo.GetCommentCounts([]uint{existing.ID})
-		return mapper.ToReviewTrendingResponse(fullReview, commentCounts[existing.ID]), nil
-	}
+	// Removed the check for existing review so users can have multiple reviews for the same game
 
 	review := &models.Review{
 		UserID:     userID,

@@ -51,7 +51,11 @@ func (r *gameLogRepository) GetByUserIDPaginated(userID uint, status string, pag
 	if status == "playing" {
 		db = db.Where("status = ?", "playing")
 	} else if status == "played" {
-		db = db.Where("status IN ?", []string{"completed", "dropped"})
+		db = db.Where("status = ?", "completed")
+	} else if status == "dropped" {
+		db = db.Where("status = ?", "dropped")
+	} else if status == "backlog" {
+		db = db.Where("status = ?", "backlog")
 	} else {
 		db = db.Where("status != ?", "backlog")
 	}
@@ -65,7 +69,11 @@ func (r *gameLogRepository) GetByUserIDPaginated(userID uint, status string, pag
 	if status == "playing" {
 		query = query.Where("status = ?", "playing")
 	} else if status == "played" {
-		query = query.Where("status IN ?", []string{"completed", "dropped"})
+		query = query.Where("status = ?", "completed")
+	} else if status == "dropped" {
+		query = query.Where("status = ?", "dropped")
+	} else if status == "backlog" {
+		query = query.Where("status = ?", "backlog")
 	} else {
 		query = query.Where("status != ?", "backlog")
 	}
