@@ -6,6 +6,16 @@ import (
 )
 
 func ToGameSummary(game *models.Game) dto.GameSummary {
+	var studios []string
+	if game.Studio.ID > 0 {
+		studios = append(studios, game.Studio.Name)
+	}
+
+	var genres []string
+	for _, g := range game.Genres {
+		genres = append(genres, g.Name)
+	}
+
 	return dto.GameSummary{
 		ID:          game.ID,
 		SteamID:     game.SteamID,
@@ -16,6 +26,9 @@ func ToGameSummary(game *models.Game) dto.GameSummary {
 		IsFree:      game.IsFree,
 		AvgRating:   game.AvgRating,
 		ReviewCount: game.ReviewCount,
+		LikeCount:   game.LikeCount,
+		Studios:     studios,
+		Genres:      genres,
 	}
 }
 
@@ -71,6 +84,11 @@ func ToGameTrendingResponse(game *models.GameTrending) *dto.GameTrendingResponse
 		studios = append(studios, game.Game.Studio.Name)
 	}
 
+	var genres []string
+	for _, g := range game.Game.Genres {
+		genres = append(genres, g.Name)
+	}
+
 	return &dto.GameTrendingResponse{
 		GameID:        game.Game.ID,
 		Title:         game.Game.Title,
@@ -78,8 +96,10 @@ func ToGameTrendingResponse(game *models.GameTrending) *dto.GameTrendingResponse
 		TrendingScore: game.TrendingScore,
 		AvgRating:     game.Game.AvgRating,
 		TotalReviews:  game.Game.ReviewCount,
+		LikeCount:     game.Game.LikeCount,
 		ReleaseDate:   game.Game.ReleaseDate,
 		Studios:       studios,
+		Genres:        genres,
 	}
 }
 
