@@ -24,15 +24,26 @@ func ToReviewTrendingResponse(review *models.Review, commentCount int) *dto.Revi
 		return nil
 	}
 
-	// Extract thumbnail from game images
+	// Extract thumbnail from game images (prioritize cover)
 	thumbnail := ""
 	for _, img := range review.Game.Images {
-		if img.ImgType == "header" || img.Thumb != "" {
-			thumbnail = img.Thumb
-			if img.Thumb == "" {
-				thumbnail = img.OgURL
+		if img.ImgType == "cover" {
+			thumbnail = img.OgURL
+			if thumbnail == "" {
+				thumbnail = img.Thumb
 			}
 			break
+		}
+	}
+	if thumbnail == "" {
+		for _, img := range review.Game.Images {
+			if img.ImgType == "header" || img.Thumb != "" {
+				thumbnail = img.Thumb
+				if img.Thumb == "" {
+					thumbnail = img.OgURL
+				}
+				break
+			}
 		}
 	}
 

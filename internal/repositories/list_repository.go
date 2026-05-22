@@ -134,6 +134,9 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
     // 4. Build dữ liệu trả về và giới hạn 5 entries mỗi list bằng code Go
     listsData := make([]ListTrendingData, 0, len(lists))
     for _, list := range lists {
+        // Lấy chính xác số lượng game thực tế
+        list.GameCount = len(list.Entries)
+
         // Giới hạn 5 entries tại đây (an toàn và chính xác hơn Limit của GORM)
         if len(list.Entries) > 5 {
             list.Entries = list.Entries[:5]
@@ -160,8 +163,15 @@ func (r *listRepository) FindByID(id uint) (*models.List, error) {
 func (r *listRepository) FindDetailByID(id uint) (*models.List, error) {
 	var list models.List
 	err := r.db.Preload("User").
+		Preload("Entries").
+		Preload("Entries.Game").
 		Preload("Entries.Game.Images", "img_type IN ?", []string{"header", "cover"}).
 		First(&list, id).Error
+	
+	if err == nil {
+		list.GameCount = len(list.Entries)
+	}
+	
 	return &list, err
 }
 

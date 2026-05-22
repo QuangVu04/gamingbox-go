@@ -9,8 +9,10 @@ type GameTrendingResponse struct {
 	TrendingScore int       `json:"trending_score"`
 	AvgRating     float64   `json:"avg_rating"`
 	TotalReviews  int       `json:"total_reviews"`
+	LikeCount     int       `json:"like_count"`
 	ReleaseDate   time.Time `json:"release_date"`
 	Studios       []string  `json:"studios"`
+	Genres        []string  `json:"genres"`
 }
 
 type GameSummary struct {
@@ -23,6 +25,9 @@ type GameSummary struct {
 	IsFree        bool      `json:"is_free"`
 	AvgRating     float64   `json:"avg_rating"`
 	ReviewCount   int       `json:"review_count"`
+	LikeCount     int       `json:"like_count"`
+	Studios       []string  `json:"studios,omitempty"`
+	Genres        []string  `json:"genres,omitempty"`
 	UserRating    *float64  `json:"user_rating,omitempty"`
 	UserLiked     *bool     `json:"user_liked,omitempty"`
 	UserHasReview *bool     `json:"user_has_review,omitempty"`
