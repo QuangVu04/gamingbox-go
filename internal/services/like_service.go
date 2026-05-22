@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 
 	"vault/be/internal/dto"
@@ -10,9 +11,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const InteractionQueueKey = "queue:game_interactions"
+
 type LikeService interface {
 	// ToggleLike handles polymorphic like/unlike with atomic counter update
 	ToggleLike(ctx context.Context, userID, targetID uint, targetType string) (*dto.LikeGameResponse, error)
+	// ToggleLikeDB performs like/unlike directly in DB
+	ToggleLikeDB(ctx context.Context, userID, targetID uint, targetType string) (bool, error)
 	// CheckLike checks if user has liked a target
 	CheckLike(ctx context.Context, userID, targetID uint, targetType string) (bool, error)
 	// GetGameLikes retrieves users who liked a game with pagination and sorting
@@ -43,18 +48,59 @@ func NewLikeService(
 	}
 }
 
-// ToggleLike performs like/unlike with atomic counter update
-// Supports game, review, list target types
+// ToggleLike queues the like/unlike request to Redis for async execution
 func (s *likeService) ToggleLike(ctx context.Context, userID, targetID uint, targetType string) (*dto.LikeGameResponse, error) {
 	// Validate targetType
 	if targetType != "game" && targetType != "review" && targetType != "list" {
 		return nil, dto.NewServiceError("VALIDATION_ERROR", "loại target không hợp lệ")
 	}
 
+	// Check current state to determine optimistic response
+	currentLiked, err := s.CheckLike(ctx, userID, targetID, targetType)
+	if err != nil {
+		currentLiked = false
+	}
+	expectedLikedState := !currentLiked
+
+	// Queue the task
+	task := dto.InteractionTask{
+		UserID:     userID,
+		TargetID:   targetID,
+		Type:       "like",
+		TargetType: targetType,
+	}
+	taskBytes, err := json.Marshal(task)
+	if err != nil {
+		return nil, dto.NewServiceError("SERVER_ERROR", "không thể queue yêu cầu")
+	}
+
+	if s.rdb != nil {
+		err = s.rdb.LPush(ctx, InteractionQueueKey, taskBytes).Err()
+		if err != nil {
+			return nil, dto.NewServiceError("SERVER_ERROR", "không thể queue yêu cầu vào redis")
+		}
+	} else {
+		// Fallback to direct DB write if Redis is down
+		_, err = s.ToggleLikeDB(ctx, userID, targetID, targetType)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &dto.LikeGameResponse{IsLiked: expectedLikedState}, nil
+}
+
+// ToggleLikeDB performs like/unlike with atomic counter update in database
+func (s *likeService) ToggleLikeDB(ctx context.Context, userID, targetID uint, targetType string) (bool, error) {
+	// Validate targetType
+	if targetType != "game" && targetType != "review" && targetType != "list" {
+		return false, dto.NewServiceError("VALIDATION_ERROR", "loại target không hợp lệ")
+	}
+
 	// Use ToggleLike which handles atomic counter update in transaction
 	isLiked, err := s.likeRepo.ToggleLike(userID, targetID, targetType)
 	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể xử lý like")
+		return false, dto.NewServiceError("SERVER_ERROR", "không thể xử lý like")
 	}
 
 	// Invalidate trending cache if it's a game
@@ -67,7 +113,7 @@ func (s *likeService) ToggleLike(ctx context.Context, userID, targetID uint, tar
 		go s.handleLikeNotification(userID, targetID, targetType)
 	}
 
-	return &dto.LikeGameResponse{IsLiked: isLiked}, nil
+	return isLiked, nil
 }
 
 func (s *likeService) handleLikeNotification(senderID, targetID uint, targetType string) {

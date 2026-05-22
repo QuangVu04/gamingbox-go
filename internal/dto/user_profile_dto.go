@@ -29,6 +29,7 @@ type UserProfileResponse struct {
 	Diary          []DiaryEntry      `json:"diary"`
 	RecentActivity []ActivitySummary `json:"recent_activity"`
 	Lists          []ListSummary     `json:"lists"`
+	FavoriteGames  []GameSummary     `json:"favorite_games"`
 }
 
 type ListSummary struct {
@@ -52,9 +53,7 @@ type FollowResponse struct {
 //review summary for user profile
 type ReviewSummary struct {
 	ID           uint        `json:"id"`
-	Title        string      `json:"title"`
 	Content      string      `json:"content"`
-	Img          string      `json:"img"`
 	LikeCount    int         `json:"like_count"`
 	CommentCount int         `json:"comment_count"`
 	Recommend    string      `json:"recommend"`

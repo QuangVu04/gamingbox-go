@@ -112,13 +112,29 @@ func (s *reviewService) GetTrendingReviews(ctx context.Context, page, limit int)
 }
 
 func (s *reviewService) CreateReview(ctx context.Context, userID uint, req dto.CreateReviewRequest) (*dto.ReviewTrendingResponse, error) {
+	existing, err := s.reviewRepo.FindByUserAndGame(userID, req.GameID)
+	if err == nil && existing != nil {
+		existing.Content = req.Content
+		existing.Recommend = req.Recommend
+		existing.IsSpoiler = req.IsSpoiler
+		if err := s.reviewRepo.Update(existing); err != nil {
+			return nil, dto.NewServiceError("DATABASE_ERROR", "không thể cập nhật review")
+		}
+
+		fullReview, err := s.reviewRepo.FindByID(existing.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		commentCounts, _ := s.reviewRepo.GetCommentCounts([]uint{existing.ID})
+		return mapper.ToReviewTrendingResponse(fullReview, commentCounts[existing.ID]), nil
+	}
+
 	review := &models.Review{
 		UserID:     userID,
 		TargetID:   req.GameID,
 		TargetType: "game",
-		Title:      req.Title,
 		Content:    req.Content,
-		Img:        req.Img,
 		Recommend:  req.Recommend,
 		IsSpoiler:  req.IsSpoiler,
 	}
@@ -146,9 +162,6 @@ func (s *reviewService) UpdateReview(ctx context.Context, userID, reviewID uint,
 		return nil, dto.NewServiceError("FORBIDDEN", "không có quyền chỉnh sửa")
 	}
 
-	if req.Title != "" {
-		review.Title = req.Title
-	}
 	if req.Content != "" {
 		review.Content = req.Content
 	}
@@ -156,9 +169,7 @@ func (s *reviewService) UpdateReview(ctx context.Context, userID, reviewID uint,
 		review.Recommend = req.Recommend
 	}
 	review.IsSpoiler = req.IsSpoiler
-	if req.Img != "" {
-		review.Img = req.Img
-	}
+
 
 	if err := s.reviewRepo.Update(review); err != nil {
 		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể cập nhật review")

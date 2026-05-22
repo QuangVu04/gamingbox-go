@@ -29,4 +29,5 @@ type User struct {
     GameLogsCount  int     `gorm:"default:0" json:"game_logs_count"`
     AverageRating  float64 `gorm:"type:decimal(3,2);default:0" json:"average_rating_count"`
     Status         string  `gorm:"type:varchar(20);default:'active'" json:"status"`
+    FavoriteGameIDs []uint `gorm:"type:json;serializer:json;default:null" json:"favorite_game_ids"`
 }

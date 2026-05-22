@@ -41,19 +41,15 @@ type ReviewCompactResponse struct {
 
 type CreateReviewRequest struct {
 	GameID    uint    `json:"game_id" binding:"required"`
-	Title     string  `json:"title"`
 	Content   string  `json:"content" binding:"required"`
 	Recommend string  `json:"recommend" binding:"required,oneof=recommend mixed not_recommend"`
 	IsSpoiler bool    `json:"is_spoiler"`
-	Img       string  `json:"img"`
 }
 
 type UpdateReviewRequest struct {
-	Title     string `json:"title"`
 	Content   string `json:"content"`
 	Recommend string `json:"recommend" binding:"omitempty,oneof=recommend mixed not_recommend"`
 	IsSpoiler bool   `json:"is_spoiler"`
-	Img       string `json:"img"`
 }
 
 type CommentRequest struct {

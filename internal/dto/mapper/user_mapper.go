@@ -75,7 +75,7 @@ func ToListSummary(list *models.List) dto.ListSummary {
 	}
 }
 
-func ToUserProfileResponse(user *models.User, averageRating float64, recentReviews []dto.ReviewSummary, popularReviews []dto.ReviewSummary, backlogGames []dto.GameSummary, diary []dto.DiaryEntry, recentActivity []dto.ActivitySummary, lists []dto.ListSummary) *dto.UserProfileResponse {
+func ToUserProfileResponse(user *models.User, averageRating float64, recentReviews []dto.ReviewSummary, popularReviews []dto.ReviewSummary, backlogGames []dto.GameSummary, diary []dto.DiaryEntry, recentActivity []dto.ActivitySummary, lists []dto.ListSummary, favoriteGames []dto.GameSummary) *dto.UserProfileResponse {
 	return &dto.UserProfileResponse{
 		ID:             user.ID,
 		Email:          user.Email,
@@ -84,7 +84,7 @@ func ToUserProfileResponse(user *models.User, averageRating float64, recentRevie
 		Bio:            user.Bio,
 		Role:           user.Role,
 		Status:         user.Status,
-		Location:       "Hồ Chí Minh, Việt Nam",
+		Location:       "",
 		SteamID:        user.SteamID,
 		FollowerCount:  user.FollowerCount,
 		FollowingCount: user.FollowingCount,
@@ -99,5 +99,6 @@ func ToUserProfileResponse(user *models.User, averageRating float64, recentRevie
 		Diary:          diary,
 		RecentActivity: recentActivity,
 		Lists:          lists,
+		FavoriteGames:  favoriteGames,
 	}
 }

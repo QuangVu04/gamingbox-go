@@ -8,9 +8,7 @@ import (
 func ToReviewSummary(review *models.Review, commentCount int) dto.ReviewSummary {
 	return dto.ReviewSummary{
 		ID:           review.ID,
-		Title:        review.Title,
 		Content:      review.Content,
-		Img:          review.Img,
 		LikeCount:    review.LikeCount,
 		CommentCount: commentCount,
 		Recommend:    review.Recommend,

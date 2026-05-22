@@ -1,7 +1,6 @@
 package seeders
 
 import (
-	"fmt"
 	"log"
 	"time"
 	"vault/be/internal/models"
@@ -62,7 +61,6 @@ func SeedTodayActivity(db *gorm.DB) {
 					UserID:     user.ID,
 					TargetID:   game.ID,
 					TargetType: "game",
-					Title:      fmt.Sprintf("Review seeded at %02d:00", hour),
 					Content:    "Đây là dữ liệu seed để kiểm tra biểu đồ theo giờ.",
 					Recommend:  "recommend",
 				}

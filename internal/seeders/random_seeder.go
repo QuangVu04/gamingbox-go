@@ -255,7 +255,6 @@ func seedRandomInteractions(db *gorm.DB) {
 					UserID:     user.ID,
 					TargetID:   game.ID,
 					TargetType: "game",
-					Title:      fmt.Sprintf("Review for %s", game.Title),
 					Content:    faker.Paragraph(),
 					Recommend:  "recommend",
 				}

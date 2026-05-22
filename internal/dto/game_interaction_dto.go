@@ -18,3 +18,13 @@ type RateGameResponse struct {
 	NewGameAvg   float64 `json:"new_game_avg"`
 	TotalRatings int     `json:"total_ratings"`
 }
+
+type InteractionTask struct {
+	UserID     uint    `json:"user_id"`
+	TargetID   uint    `json:"target_id"`   // game_id, review_id, list_id, comment_id
+	Type       string  `json:"type"`        // "like", "log", "rate"
+	Status     string  `json:"status"`      // for log
+	Rating     float64 `json:"rating"`      // for rate
+	TargetType string  `json:"target_type"` // for like target ("game", "review", "list", "comment")
+}
+

@@ -61,7 +61,7 @@ func (a *App) Run() {
 
 	authService := services.NewAuthService(userRepo, tokenRepo)
 	notificationService := services.NewNotificationService(notificationRepo)
-	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo, notificationService)
+	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo, gameRepo, notificationService, a.DB)
 	gameService := services.NewGameService(gameRepo, ratingRepo, reviewRepo, a.DB, a.RDB)
 	reviewService := services.NewReviewService(reviewRepo, userRepo, a.RDB)
 	listService := services.NewListService(listRepo, a.RDB)
@@ -90,6 +90,10 @@ func (a *App) Run() {
 	// 4. Start Notification Worker
 	notificationWorker := workers.NewNotificationWorker(notificationService)
 	go notificationWorker.Start(context.Background())
+
+	// Start Interaction Worker
+	interactionWorker := workers.NewInteractionWorker(likeService, gameService)
+	go interactionWorker.Start(context.Background())
 
 	// 5. Setup Routes
 	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH, adminH)

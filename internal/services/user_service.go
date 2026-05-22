@@ -16,10 +16,14 @@ type UserService interface {
 	GetFollowing(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error)
 	GetFollowers(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserSummary], error)
 	GetUserStats(userID uint) (*dto.UserStatsResponse, error)
-	GetDiary(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error)
+	GetDiary(userID uint, status string, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error)
 	GetWatchlist(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error)
 	UpdateUserStatus(userID uint, status string) error
 	UpdateUserRole(userID uint, role string) error
+	UpdateFavoriteGames(userID uint, gameIDs []uint) error
+	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
+	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
+	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
 }
 
 type userService struct {
@@ -29,7 +33,9 @@ type userService struct {
 	listRepo        repositories.ListRepository
 	activityLogRepo repositories.ActivityLogRepository
 	ratingRepo      repositories.RatingRepository
+	gameRepo        repositories.GameRepository
 	notifService    NotificationService
+	db              *gorm.DB
 }
 
 func NewUserService(
@@ -39,7 +45,9 @@ func NewUserService(
 	listRepo repositories.ListRepository,
 	activityLogRepo repositories.ActivityLogRepository,
 	ratingRepo repositories.RatingRepository,
+	gameRepo repositories.GameRepository,
 	notifService NotificationService,
+	db *gorm.DB,
 ) UserService {
 	return &userService{
 		userRepo:        userRepo,
@@ -48,7 +56,9 @@ func NewUserService(
 		listRepo:        listRepo,
 		activityLogRepo: activityLogRepo,
 		ratingRepo:      ratingRepo,
+		gameRepo:        gameRepo,
 		notifService:    notifService,
+		db:              db,
 	}
 }
 
@@ -58,52 +68,92 @@ func (s *userService) GetUserProfile(userID uint) (*dto.UserProfileResponse, err
 		return nil, dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
 	}
 
-	recentReviews, err := s.fetchRecentReviews(userID, 5)
-	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy đánh giá gần đây")
-	}
-
-	popularReviews, err := s.fetchPopularReviews(userID, 5)
-	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy đánh giá phổ biến")
-	}
-
-	backlogGames, err := s.fetchBacklogGames(userID, 5)
-	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy backlog")
-	}
-
-	diary, err := s.fetchDiaryEntries(userID, 20)
-	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy lịch sử chơi")
-	}
-
 	averageRating, err := s.fetchAverageRating(userID)
 	if err != nil {
 		return nil, dto.NewServiceError("SERVER_ERROR", "không thể tính điểm trung bình")
 	}
 
-	recentActivity, err := s.fetchRecentActivity(userID, 10)
-	if err != nil {
-		return nil, dto.NewServiceError("SERVER_ERROR", "không thể lấy hoạt động gần đây")
-	}
-
-	rawLists, _ := s.listRepo.GetByUserID(userID)
-	listSummaries := make([]dto.ListSummary, 0, len(rawLists))
-	for _, l := range rawLists {
-		listSummaries = append(listSummaries, mapper.ToListSummary(&l))
+	// Fetch Favorite Games
+	favoriteGames := make([]dto.GameSummary, 0)
+	if len(user.FavoriteGameIDs) > 0 {
+		rawFavs, err := s.gameRepo.GetByIDs(user.FavoriteGameIDs)
+		if err == nil {
+			favMap := make(map[uint]models.Game)
+			for _, g := range rawFavs {
+				favMap[g.ID] = g
+			}
+			for _, id := range user.FavoriteGameIDs {
+				if g, ok := favMap[id]; ok {
+					favoriteGames = append(favoriteGames, mapper.ToGameSummary(&g))
+				}
+			}
+			s.populateGameInteractions(userID, favoriteGames)
+		}
 	}
 
 	return mapper.ToUserProfileResponse(
 		user,
 		averageRating,
-		recentReviews,
-		popularReviews,
-		backlogGames,
-		diary,
-		recentActivity,
-		listSummaries,
+		[]dto.ReviewSummary{},   // recentReviews
+		[]dto.ReviewSummary{},   // popularReviews
+		[]dto.GameSummary{},     // backlogGames
+		[]dto.DiaryEntry{},      // diary
+		[]dto.ActivitySummary{}, // recentActivity
+		[]dto.ListSummary{},     // lists
+		favoriteGames,
 	), nil
+}
+
+func (s *userService) populateGameInteractions(userID uint, summaries []dto.GameSummary) {
+	if len(summaries) == 0 {
+		return
+	}
+
+	gameIDs := make([]uint, 0, len(summaries))
+	for _, s := range summaries {
+		gameIDs = append(gameIDs, s.ID)
+	}
+
+	ratingsMap := make(map[uint]float64)
+	likesMap := make(map[uint]bool)
+	reviewsMap := make(map[uint]bool)
+
+	// Get user ratings
+	var ratings []models.Rating
+	if err := s.db.Where("user_id = ? AND game_id IN ?", userID, gameIDs).Find(&ratings).Error; err == nil {
+		for _, r := range ratings {
+			ratingsMap[r.GameID] = r.Rating
+		}
+	}
+
+	// Get user likes
+	var likes []models.Like
+	if err := s.db.Where("user_id = ? AND target_type = 'game' AND target_id IN ?", userID, gameIDs).Find(&likes).Error; err == nil {
+		for _, l := range likes {
+			likesMap[l.TargetID] = true
+		}
+	}
+
+	// Get user reviews
+	var reviews []models.Review
+	if err := s.db.Where("user_id = ? AND target_type = 'game' AND target_id IN ?", userID, gameIDs).Find(&reviews).Error; err == nil {
+		for _, rev := range reviews {
+			reviewsMap[rev.TargetID] = true
+		}
+	}
+
+	// Populate fields
+	for i := range summaries {
+		id := summaries[i].ID
+		if rVal, exists := ratingsMap[id]; exists {
+			rValCopy := rVal
+			summaries[i].UserRating = &rValCopy
+		}
+		liked := likesMap[id]
+		summaries[i].UserLiked = &liked
+		hasReview := reviewsMap[id]
+		summaries[i].UserHasReview = &hasReview
+	}
 }
 
 func (s *userService) ToggleFollow(followerID, followingID uint) (*dto.FollowResponse, error) {
@@ -327,6 +377,18 @@ func (s *userService) fetchDiaryEntries(userID uint, limit int) ([]dto.DiaryEntr
 		result = append(result, mapper.ToDiaryEntry(&log))
 	}
 
+	// Populate user interactions on games in diary
+	if len(result) > 0 {
+		summaries := make([]dto.GameSummary, len(result))
+		for i := range result {
+			summaries[i] = result[i].Game
+		}
+		s.populateGameInteractions(userID, summaries)
+		for i := range result {
+			result[i].Game = summaries[i]
+		}
+	}
+
 	return result, nil
 }
 
@@ -361,11 +423,11 @@ func (s *userService) GetUserStats(userID uint) (*dto.UserStatsResponse, error) 
 	}, nil
 }
 
-func (s *userService) GetDiary(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error) {
+func (s *userService) GetDiary(userID uint, status string, page, limit int) (*dto.PaginatedResponse[[]dto.DiaryEntry], error) {
 	if page < 1 { page = 1 }
 	if limit < 1 { limit = 20 }
 	
-	logs, err := s.gameLogRepo.GetByUserID(userID, limit)
+	logs, total, err := s.gameLogRepo.GetByUserIDPaginated(userID, status, page, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -375,20 +437,62 @@ func (s *userService) GetDiary(userID uint, page, limit int) (*dto.PaginatedResp
 		diary = append(diary, mapper.ToDiaryEntry(&log))
 	}
 
+	// Populate user interactions on games in diary
+	if len(diary) > 0 {
+		summaries := make([]dto.GameSummary, len(diary))
+		for i := range diary {
+			summaries[i] = diary[i].Game
+		}
+		s.populateGameInteractions(userID, summaries)
+		for i := range diary {
+			diary[i].Game = summaries[i]
+		}
+	}
+
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
 	return &dto.PaginatedResponse[[]dto.DiaryEntry]{
 		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
 		Data:   diary,
 	}, nil
 }
 
 func (s *userService) GetWatchlist(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.GameSummary], error) {
-	games, err := s.fetchBacklogGames(userID, limit)
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 20 }
+
+	logs, total, err := s.gameLogRepo.GetBacklogByUserIDPaginated(userID, page, limit)
 	if err != nil {
 		return nil, err
 	}
 
+	games := make([]dto.GameSummary, 0, len(logs))
+	for _, log := range logs {
+		games = append(games, mapper.ToGameSummary(&log.Game))
+	}
+
+	if len(games) > 0 {
+		s.populateGameInteractions(userID, games)
+	}
+
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
 	return &dto.PaginatedResponse[[]dto.GameSummary]{
 		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
 		Data:   games,
 	}, nil
 }
@@ -412,3 +516,132 @@ func (s *userService) UpdateUserRole(userID uint, role string) error {
 	user.Role = models.UserRole(role)
 	return s.userRepo.Update(user)
 }
+
+func (s *userService) UpdateFavoriteGames(userID uint, gameIDs []uint) error {
+	if len(gameIDs) > 4 {
+		return dto.NewServiceError("INVALID_INPUT", "Chỉ được chọn tối đa 4 game yêu thích")
+	}
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
+	}
+	user.FavoriteGameIDs = gameIDs
+	return s.userRepo.Update(user)
+}
+
+func (s *userService) GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	reviews, total, err := s.reviewRepo.GetByUserIDPaginated(userID, page, limit, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	reviewIDs := make([]uint, 0, len(reviews))
+	for _, r := range reviews {
+		reviewIDs = append(reviewIDs, r.ID)
+	}
+	commentCounts, _ := s.reviewRepo.GetCommentCounts(reviewIDs)
+
+	data := make([]dto.ReviewSummary, 0, len(reviews))
+	for _, r := range reviews {
+		data = append(data, mapper.ToReviewSummary(&r, commentCounts[r.ID]))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ReviewSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *userService) GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	lists, total, err := s.listRepo.GetByUserIDPaginated(userID, page, limit)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.ListSummary, 0, len(lists))
+	for _, l := range lists {
+		data = append(data, mapper.ToListSummary(&l))
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ListSummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *userService) GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error) {
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 10 }
+	activities, total, err := s.activityLogRepo.GetByUserIDPaginated(userID, page, limit, filterType, searchQuery)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]dto.ActivitySummary, 0, len(activities))
+	for _, act := range activities {
+		summary := mapper.ToActivitySummary(&act)
+
+		var gameID uint
+		if act.TargetType == "game" || act.TargetType == "rating" {
+			gameID = act.TargetID
+		} else if act.TargetType == "review" {
+			if r, err := s.reviewRepo.FindByID(act.TargetID); err == nil && r != nil {
+				gameID = r.TargetID
+			}
+		} else if act.TargetType == "list" {
+			if l, err := s.listRepo.FindDetailByID(act.TargetID); err == nil && l != nil && len(l.Entries) > 0 {
+				gameID = l.Entries[0].GameID
+			}
+		}
+
+		if gameID != 0 {
+			if g, err := s.gameRepo.GetByID(gameID); err == nil && g != nil {
+				imgURL := ""
+				for _, img := range g.Images {
+					if img.ImgType == "cover" {
+						imgURL = img.OgURL
+						break
+					}
+				}
+				if imgURL == "" && len(g.Images) > 0 {
+					imgURL = g.Images[0].OgURL
+				}
+				summary.TargetImage = imgURL
+			}
+		}
+
+		data = append(data, summary)
+	}
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 { totalPages++ }
+
+	return &dto.PaginatedResponse[[]dto.ActivitySummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+

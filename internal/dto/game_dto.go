@@ -14,15 +14,18 @@ type GameTrendingResponse struct {
 }
 
 type GameSummary struct {
-	ID          uint      `json:"id"`
-	SteamID     int       `json:"steam_id"`
-	Title       string    `json:"title"`
-	Poster      string    `json:"poster"`
-	ReleaseDate time.Time `json:"release_date"`
-	Price       float64   `json:"price"`
-	IsFree      bool      `json:"is_free"`
-	AvgRating   float64   `json:"avg_rating"`
-	ReviewCount int       `json:"review_count"`
+	ID            uint      `json:"id"`
+	SteamID       int       `json:"steam_id"`
+	Title         string    `json:"title"`
+	Poster        string    `json:"poster"`
+	ReleaseDate   time.Time `json:"release_date"`
+	Price         float64   `json:"price"`
+	IsFree        bool      `json:"is_free"`
+	AvgRating     float64   `json:"avg_rating"`
+	ReviewCount   int       `json:"review_count"`
+	UserRating    *float64  `json:"user_rating,omitempty"`
+	UserLiked     *bool     `json:"user_liked,omitempty"`
+	UserHasReview *bool     `json:"user_has_review,omitempty"`
 }
 
 type GenreDTO struct {
@@ -105,3 +108,23 @@ type CreateGameRequest struct {
 	} `json:"images"`
 	Screenshots []string `json:"screenshots"`
 }
+
+type LogGameStatusRequest struct {
+	GameID uint   `json:"game_id" binding:"required"`
+	Status string `json:"status"`
+}
+
+type UserReviewDTO struct {
+	ReviewID  uint   `json:"review_id"`
+	Content   string `json:"content"`
+	Recommend string `json:"recommend"`
+	IsSpoiler bool   `json:"is_spoiler"`
+}
+
+type GameUserStateResponse struct {
+	Rating    float64        `json:"rating"`
+	Liked     bool           `json:"liked"`
+	LogStatus string         `json:"log_status"`
+	Review    *UserReviewDTO `json:"review"`
+}
+

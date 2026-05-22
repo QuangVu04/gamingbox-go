@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -22,7 +23,9 @@ const CacheTTL = 15 * time.Minute
 type GameService interface {
 	GetTrendingGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	RateGame(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error)
+	RateGameDB(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error)
 	GetGameByID(ctx context.Context, id uint) (*dto.GameDetailResponse, error)
+	GetGameUserState(ctx context.Context, userID, gameID uint) (*dto.GameUserStateResponse, error)
 	SearchGames(ctx context.Context, query, category, platform, sort string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetPopularGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetGenres(ctx context.Context) ([]models.Genre, error)
@@ -34,8 +37,9 @@ type GameService interface {
 	SearchStudios(ctx context.Context, query string) ([]models.Studio, error)
 	GetStudioDetail(ctx context.Context, id uint) (*dto.StudioDetailResponse, error)
 	DeleteGame(ctx context.Context, id uint) error
+	LogGameStatus(ctx context.Context, userID, gameID uint, status string) error
+	LogGameStatusDB(ctx context.Context, userID, gameID uint, status string) error
 }
-
 
 type gameService struct {
 	gameRepo   repositories.GameRepository
@@ -119,7 +123,47 @@ func (s *gameService) RateGame(ctx context.Context, userID, gameID uint, rating 
 		return nil, dto.NewServiceError("VALIDATION_ERROR", "điểm số phải từ 0.5 đến 5.0")
 	}
 
-	// Use transaction to ensure consistency
+	task := dto.InteractionTask{
+		UserID:   userID,
+		TargetID: gameID,
+		Type:     "rate",
+		Rating:   rating,
+	}
+	taskBytes, err := json.Marshal(task)
+	if err != nil {
+		return nil, dto.NewServiceError("SERVER_ERROR", "không thể queue đánh giá")
+	}
+
+	if s.rdb != nil {
+		err = s.rdb.LPush(ctx, InteractionQueueKey, taskBytes).Err()
+		if err != nil {
+			return nil, dto.NewServiceError("SERVER_ERROR", "không thể queue đánh giá vào redis")
+		}
+	} else {
+		// Fallback to direct DB write if Redis is down
+		return s.RateGameDB(ctx, userID, gameID, rating)
+	}
+
+	// For the response: get current game stats to return, so we don't break frontend expectations.
+	avgRating, totalRatings, err := s.ratingRepo.GetGameStats(gameID)
+	if err != nil {
+		avgRating = 0.0
+		totalRatings = 0
+	}
+
+	return &dto.RateGameResponse{
+		MyRating:     rating,
+		NewGameAvg:   avgRating,
+		TotalRatings: totalRatings,
+	}, nil
+}
+
+func (s *gameService) RateGameDB(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error) {
+	// Validate rating range
+	if rating < 0.5 || rating > 5.0 {
+		return nil, dto.NewServiceError("VALIDATION_ERROR", "điểm số phải từ 0.5 đến 5.0")
+	}
+
 	var result *dto.RateGameResponse
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Upsert rating
@@ -130,18 +174,15 @@ func (s *gameService) RateGame(ctx context.Context, userID, gameID uint, rating 
 			CreatedAt: time.Now(),
 		}
 
-		// handle upsert with transaction
 		if err := s.ratingRepo.UpsertRating(ratingRecord); err != nil {
 			return err
 		}
 
-		// Get updated game stats
 		avgRating, totalRatings, err := s.ratingRepo.GetGameStats(gameID)
 		if err != nil {
 			return err
 		}
 
-		// Update game with new stats
 		if err := s.ratingRepo.UpdateGameRating(gameID, avgRating, totalRatings); err != nil {
 			return err
 		}
@@ -252,6 +293,119 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 	return resp, nil
 }
 
+func (s *gameService) GetGameUserState(ctx context.Context, userID, gameID uint) (*dto.GameUserStateResponse, error) {
+	var state dto.GameUserStateResponse
+
+	// 1. Rating
+	var ratingVal float64
+	if err := s.db.Model(&models.Rating{}).Where("user_id = ? AND game_id = ?", userID, gameID).Select("rating").Scan(&ratingVal).Error; err == nil {
+		state.Rating = ratingVal
+	}
+
+	// 2. Like
+	var likeCount int64
+	if err := s.db.Model(&models.Like{}).Where("user_id = ? AND target_id = ? AND target_type = ?", userID, gameID, "game").Count(&likeCount).Error; err == nil {
+		state.Liked = likeCount > 0
+	}
+
+	// 3. Log Status
+	var logStatus string
+	if err := s.db.Model(&models.GameLog{}).Where("user_id = ? AND game_id = ?", userID, gameID).Select("status").Scan(&logStatus).Error; err == nil {
+		if logStatus == "completed" {
+			state.LogStatus = "played"
+		} else {
+			state.LogStatus = logStatus
+		}
+	} else {
+		state.LogStatus = "none"
+	}
+
+	// 4. Review
+	var review models.Review
+	if err := s.db.Where("user_id = ? AND target_id = ? AND target_type = ?", userID, gameID, "game").First(&review).Error; err == nil {
+		state.Review = &dto.UserReviewDTO{
+			ReviewID:  review.ID,
+			Content:   review.Content,
+			Recommend: review.Recommend,
+			IsSpoiler: review.IsSpoiler,
+		}
+	}
+
+	return &state, nil
+}
+
+func (s *gameService) LogGameStatus(ctx context.Context, userID, gameID uint, status string) error {
+	// Validate input
+	mappedStatus := status
+	if status == "played" {
+		mappedStatus = "completed"
+	}
+	if status != "" && status != "none" {
+		validStatuses := map[string]bool{
+			"playing":   true,
+			"completed": true,
+			"dropped":   true,
+			"backlog":   true,
+		}
+		if !validStatuses[mappedStatus] {
+			return dto.NewServiceError("VALIDATION_ERROR", "trạng thái không hợp lệ")
+		}
+	}
+
+	task := dto.InteractionTask{
+		UserID:   userID,
+		TargetID: gameID,
+		Type:     "log",
+		Status:   status,
+	}
+	taskBytes, err := json.Marshal(task)
+	if err != nil {
+		return dto.NewServiceError("SERVER_ERROR", "không thể queue log trạng thái")
+	}
+
+	if s.rdb != nil {
+		err = s.rdb.LPush(ctx, InteractionQueueKey, taskBytes).Err()
+		if err != nil {
+			return dto.NewServiceError("SERVER_ERROR", "không thể queue log trạng thái vào redis")
+		}
+	} else {
+		// Fallback to direct DB write if Redis is down
+		return s.LogGameStatusDB(ctx, userID, gameID, status)
+	}
+
+	return nil
+}
+
+func (s *gameService) LogGameStatusDB(ctx context.Context, userID, gameID uint, status string) error {
+	if status == "" || status == "none" {
+		return s.db.WithContext(ctx).Where("user_id = ? AND game_id = ?", userID, gameID).Delete(&models.GameLog{}).Error
+	}
+
+	mappedStatus := status
+	if status == "played" {
+		mappedStatus = "completed"
+	}
+
+	validStatuses := map[string]bool{
+		"playing":   true,
+		"completed": true,
+		"dropped":   true,
+		"backlog":   true,
+	}
+	if !validStatuses[mappedStatus] {
+		return dto.NewServiceError("VALIDATION_ERROR", "trạng thái không hợp lệ")
+	}
+
+	logRecord := &models.GameLog{
+		UserID:   userID,
+		GameID:   gameID,
+		Status:   mappedStatus,
+		LoggedAt: time.Now(),
+	}
+
+	return s.db.WithContext(ctx).Save(logRecord).Error
+}
+
 func getReviewIDs(reviews []models.Review) []uint {
 	ids := make([]uint, 0, len(reviews))
 	for _, r := range reviews {
@@ -266,34 +420,7 @@ func (s *gameService) SearchGames(ctx context.Context, query, category, platform
 		return nil, nil, err
 	}
 
-	responses := make([]dto.GameTrendingResponse, 0, len(games))
-	for _, g := range games {
-		thumbnail := ""
-		for _, img := range g.Images {
-			if img.ImgType == "header" {
-				thumbnail = img.OgURL
-				break
-			}
-		}
-		if thumbnail == "" && len(g.Images) > 0 {
-			thumbnail = g.Images[0].OgURL
-		}
-
-		studios := make([]string, 0)
-		if g.Studio.ID > 0 {
-			studios = append(studios, g.Studio.Name)
-		}
-
-		responses = append(responses, dto.GameTrendingResponse{
-			GameID:       g.ID,
-			Title:        g.Title,
-			Thumbnail:    thumbnail,
-			AvgRating:    g.AvgRating,
-			TotalReviews: g.ReviewCount,
-			ReleaseDate:  g.ReleaseDate,
-			Studios:      studios,
-		})
-	}
+	responses := mapper.ToSimpleGameResponses(games)
 
 	pagination := &dto.PaginationDTO{
 		TotalRecords: int(total),
@@ -311,24 +438,7 @@ func (s *gameService) GetPopularGames(ctx context.Context, page, limit int) ([]d
 		return nil, nil, err
 	}
 
-	responses := make([]dto.GameTrendingResponse, 0, len(games))
-	for _, g := range games {
-		thumbnail := ""
-		for _, img := range g.Images {
-			if img.ImgType == "header" {
-				thumbnail = img.OgURL
-				break
-			}
-		}
-		responses = append(responses, dto.GameTrendingResponse{
-			GameID:       g.ID,
-			Title:        g.Title,
-			Thumbnail:    thumbnail,
-			AvgRating:    g.AvgRating,
-			TotalReviews: g.ReviewCount,
-			ReleaseDate:  g.ReleaseDate,
-		})
-	}
+	responses := mapper.ToSimpleGameResponses(games)
 
 	pagination := &dto.PaginationDTO{
 		TotalRecords: int(total),

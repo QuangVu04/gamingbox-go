@@ -190,6 +190,7 @@ func (h *UserHandler) GetStats(c *gin.Context) {
 // @Tags         Users
 // @Produce      json
 // @Param        id query int false "ID người dùng"
+// @Param        status query string false "Trạng thái (playing, played)"
 // @Param        page query int false "Trang" default(1)
 // @Param        limit query int false "Giới hạn" default(20)
 // @Success      200  {object}  dto.PaginatedResponse[[]dto.DiaryEntry]
@@ -209,10 +210,11 @@ func (h *UserHandler) GetDiary(c *gin.Context) {
 		userID = uint(id)
 	}
 
+	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	res, err := h.userService.GetDiary(userID, page, limit)
+	res, err := h.userService.GetDiary(userID, status, page, limit)
 	if err != nil {
 		handleUserServiceError(c, err)
 		return
@@ -297,3 +299,166 @@ func (h *UserHandler) GetFollowers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, res)
 }
+
+// UpdateFavoriteGames godoc
+// @Summary      Cập nhật danh sách game yêu thích
+// @Description  Cập nhật danh sách game yêu thích (Tối đa 4 item)
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body updateFavRequest true "Danh sách ID game yêu thích"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /users/favorite-games [put]
+func (h *UserHandler) UpdateFavoriteGames(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	type updateFavRequest struct {
+		GameIDs []uint `json:"game_ids"`
+	}
+
+	var req updateFavRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	if len(req.GameIDs) > 4 {
+		utils.ValidationError(c, "Tối đa chỉ được chọn 4 game yêu thích")
+		return
+	}
+
+	err := h.userService.UpdateFavoriteGames(userID, req.GameIDs)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, dto.MessageResponse{
+		Status:  "success",
+		Message: "Cập nhật danh sách game yêu thích thành công",
+	})
+}
+
+// GetReviews godoc
+// @Summary      Lấy danh sách review của người dùng
+// @Description  Lấy danh sách review của người dùng (có phân trang)
+// @Tags         Users
+// @Produce      json
+// @Param        id query int false "ID người dùng (Nếu không có sẽ lấy me)"
+// @Param        page query int false "Trang" default(1)
+// @Param        limit query int false "Giới hạn" default(10)
+// @Param        filter query string false "Bộ lọc (newest, popular...)"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.ReviewSummary]
+// @Router       /users/reviews [get]
+func (h *UserHandler) GetReviews(c *gin.Context) {
+	var userID uint
+	idStr := c.Query("id")
+	if idStr == "" {
+		uid, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			utils.Unauthorized(c, "Vui lòng đăng nhập")
+			return
+		}
+		userID = uid
+	} else {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		userID = uint(id)
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	filter := c.Query("filter")
+
+	res, err := h.userService.GetUserReviews(userID, page, limit, filter)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+// GetLists godoc
+// @Summary      Lấy danh sách List game của người dùng
+// @Description  Lấy danh sách List game của người dùng (có phân trang)
+// @Tags         Users
+// @Produce      json
+// @Param        id query int false "ID người dùng (Nếu không có sẽ lấy me)"
+// @Param        page query int false "Trang" default(1)
+// @Param        limit query int false "Giới hạn" default(10)
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.ListSummary]
+// @Router       /users/lists [get]
+func (h *UserHandler) GetLists(c *gin.Context) {
+	var userID uint
+	idStr := c.Query("id")
+	if idStr == "" {
+		uid, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			utils.Unauthorized(c, "Vui lòng đăng nhập")
+			return
+		}
+		userID = uid
+	} else {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		userID = uint(id)
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	res, err := h.userService.GetUserLists(userID, page, limit)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+// GetActivities godoc
+// @Summary      Lấy danh sách hoạt động của người dùng
+// @Description  Lấy danh sách hoạt động gần đây của người dùng (có phân trang)
+// @Tags         Users
+// @Produce      json
+// @Param        id query int false "ID người dùng (Nếu không có sẽ lấy me)"
+// @Param        page query int false "Trang" default(1)
+// @Param        limit query int false "Giới hạn" default(10)
+// @Param        filterType query string false "Loại hoạt động (review, rating, game...)"
+// @Param        search query string false "Từ khóa tìm kiếm"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.ActivitySummary]
+// @Router       /users/activities [get]
+func (h *UserHandler) GetActivities(c *gin.Context) {
+	var userID uint
+	idStr := c.Query("id")
+	if idStr == "" {
+		uid, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			utils.Unauthorized(c, "Vui lòng đăng nhập")
+			return
+		}
+		userID = uid
+	} else {
+		id, _ := strconv.ParseUint(idStr, 10, 32)
+		userID = uint(id)
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	filterType := c.Query("filterType")
+	search := c.Query("search")
+
+	res, err := h.userService.GetUserActivities(userID, page, limit, filterType, search)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}

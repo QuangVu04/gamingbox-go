@@ -14,6 +14,7 @@ type ReviewRepository interface {
 	GetCommentCounts(reviewIDs []uint) (map[uint]int, error)
 	GetTrendingReviews(page, limit int) ([]models.Review, int64, error)
 	FindByID(id uint) (*models.Review, error)
+	FindByUserAndGame(userID, gameID uint) (*models.Review, error)
 	Create(review *models.Review) error
 	Update(review *models.Review) error
 	Delete(id uint) error
@@ -125,6 +126,15 @@ func (r *reviewRepository) GetTrendingReviews(page, limit int) ([]models.Review,
 func (r *reviewRepository) FindByID(id uint) (*models.Review, error) {
 	var review models.Review
 	err := r.db.First(&review, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &review, nil
+}
+
+func (r *reviewRepository) FindByUserAndGame(userID, gameID uint) (*models.Review, error) {
+	var review models.Review
+	err := r.db.Where("user_id = ? AND target_id = ? AND target_type = ?", userID, gameID, "game").First(&review).Error
 	if err != nil {
 		return nil, err
 	}

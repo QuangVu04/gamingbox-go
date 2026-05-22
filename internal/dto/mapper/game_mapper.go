@@ -48,12 +48,20 @@ func ToGameTrendingResponse(game *models.GameTrending) *dto.GameTrendingResponse
 	// Extract thumbnail from images
 	thumbnail := ""
 	for _, img := range game.Game.Images {
-		if img.ImgType == "header" || img.Thumb != "" {
-			thumbnail = img.Thumb
-			if img.Thumb == "" {
-				thumbnail = img.OgURL
-			}
+		if img.ImgType == "cover" {
+			thumbnail = img.OgURL
 			break
+		}
+	}
+	if thumbnail == "" {
+		for _, img := range game.Game.Images {
+			if img.ImgType == "header" || img.Thumb != "" {
+				thumbnail = img.Thumb
+				if img.Thumb == "" {
+					thumbnail = img.OgURL
+				}
+				break
+			}
 		}
 	}
 
@@ -157,9 +165,17 @@ func ToSimpleGameResponse(game *models.Game) *dto.GameTrendingResponse {
 
 	thumbnail := ""
 	for _, img := range game.Images {
-		if img.ImgType == "header" {
+		if img.ImgType == "cover" {
 			thumbnail = img.OgURL
 			break
+		}
+	}
+	if thumbnail == "" {
+		for _, img := range game.Images {
+			if img.ImgType == "header" {
+				thumbnail = img.OgURL
+				break
+			}
 		}
 	}
 

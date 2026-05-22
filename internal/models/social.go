@@ -11,9 +11,7 @@ type Review struct {
 	UserID     uint   `gorm:"index"`
 	TargetID   uint   `gorm:"index"`
 	TargetType string `gorm:"type:enum('game', 'list', 'news')"`
-	Title      string
 	Content    string `gorm:"type:text"`
-	Img        string
 	LikeCount  int    `gorm:"default:0"`
 	Recommend  string `gorm:"type:enum('recommend', 'mixed', 'not_recommend')"`
 	IsSpoiler  bool   `gorm:"default:false"`

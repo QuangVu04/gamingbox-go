@@ -58,12 +58,16 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		users.GET("/watchlist", userHandler.GetWatchlist)
 		users.GET("/followers", userHandler.GetFollowers)
 		users.GET("/following", userHandler.GetFollowing)
+		users.GET("/reviews", userHandler.GetReviews)
+		users.GET("/lists", userHandler.GetLists)
+		users.GET("/activities", userHandler.GetActivities)
 
 		usersProtected := users.Group("")
 		usersProtected.Use(middleware.Authenticate())
 		{
 			usersProtected.GET("/me", userHandler.Me)
 			usersProtected.POST("/follow", userHandler.FollowUser)
+			usersProtected.PUT("/favorite-games", userHandler.UpdateFavoriteGames)
 		}
 	}
 
@@ -86,6 +90,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		gamesProtected := games.Group("")
 		gamesProtected.Use(middleware.Authenticate())
 		{
+			gamesProtected.GET("/:id/state", gameHandler.GetGameUserState)
+			gamesProtected.POST("/log", gameHandler.LogGameStatus)
 			gamesProtected.POST("/rate", gameHandler.RateGame)
 			gamesProtected.POST("", middleware.RequireAdmin(), gameHandler.CreateGame)
 			gamesProtected.PUT("/:id", middleware.RequireAdmin(), gameHandler.UpdateGame)

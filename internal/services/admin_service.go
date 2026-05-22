@@ -373,7 +373,7 @@ func (s *adminService) GetUserDetailOverview(userID uint) (*dto.UserDetailOvervi
 		Bio:            &bio,
 		Role:           string(u.Role),
 		Status:         u.Status,
-		Location:       "Hồ Chí Minh, Việt Nam",
+		Location:       "",
 		SteamID:        u.SteamID,
 		FollowerCount:  u.FollowerCount,
 		FollowingCount: u.FollowingCount,
@@ -530,7 +530,7 @@ func (s *adminService) GetUserBacklog(userID uint, page, limit int) (*dto.Pagina
 func (s *adminService) GetUserLibraryGames(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.UserLibraryGameDTO], error) {
 	if page < 1 { page = 1 }
 	if limit < 1 { limit = 10 }
-	logs, total, err := s.gameLogRepo.GetByUserIDPaginated(userID, page, limit)
+	logs, total, err := s.gameLogRepo.GetByUserIDPaginated(userID, "", page, limit)
 	if err != nil {
 		return nil, err
 	}

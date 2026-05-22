@@ -27,6 +27,7 @@ type GameRepository interface {
 	DeletePlatformByName(name string) error
 	SearchStudios(query string) ([]models.Studio, error)
 	DeleteGame(id uint) error
+	GetByIDs(ids []uint) ([]models.Game, error)
 }
 
 
@@ -511,4 +512,18 @@ func (r *gameRepository) DeleteGame(id uint) error {
 
 		return nil
 	})
+}
+
+func (r *gameRepository) GetByIDs(ids []uint) ([]models.Game, error) {
+	var games []models.Game
+	if len(ids) == 0 {
+		return games, nil
+	}
+	err := r.db.Preload("Studio").
+		Preload("Genres").
+		Preload("Platforms").
+		Preload("Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("id IN ?", ids).
+		Find(&games).Error
+	return games, err
 }

@@ -49,7 +49,6 @@ func SeedGameboxData(db *gorm.DB) {
 			UserID:     user.ID,
 			TargetID:   game.ID,
 			TargetType: "game",
-			Title:      "Review cho " + game.Title,
 			Content:    "Đây là một bài review giả lập cho game này. Cảm nhận chung là khá ổn.",
 			Recommend:  recommends[rand.Intn(len(recommends))],
 			LikeCount:  rand.Intn(50),

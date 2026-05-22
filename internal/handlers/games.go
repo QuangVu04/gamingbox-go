@@ -140,6 +140,91 @@ func (h *GameHandler) GetGameDetail(c *gin.Context) {
 	utils.Success(c, http.StatusOK, game)
 }
 
+// GetGameUserState godoc
+// @Summary      Lấy trạng thái tương tác của người dùng với game
+// @Description  Lấy rating, like, log status và review của người dùng hiện tại đối với game (Cần đăng nhập)
+// @Tags         Games
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path int true "ID của Game"
+// @Success      200  {object}  dto.SuccessResponse[dto.GameUserStateResponse]
+// @Router       /games/{id}/state [get]
+func (h *GameHandler) GetGameUserState(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	state, err := h.gameService.GetGameUserState(ctx, userID, uint(id))
+	if err != nil {
+		if serviceErr, ok := err.(*dto.ServiceError); ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": "error",
+				"code":   serviceErr.Code,
+				"error":  serviceErr.Message,
+			})
+			return
+		}
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", "không thể lấy trạng thái game")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, state)
+}
+
+// LogGameStatus godoc
+// @Summary      Log Game Status
+// @Description  Cập nhật trạng thái chơi game (playing, played, backlog, none)
+// @Tags         Games
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.LogGameStatusRequest true "Thông tin log status"
+// @Success      200  {object}  dto.SuccessResponse[string]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /games/log [post]
+func (h *GameHandler) LogGameStatus(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	var req dto.LogGameStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Yêu cầu không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	err := h.gameService.LogGameStatus(ctx, userID, req.GameID, req.Status)
+	if err != nil {
+		if serviceErr, ok := err.(*dto.ServiceError); ok {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status": "error",
+				"code":   serviceErr.Code,
+				"error":  serviceErr.Message,
+			})
+			return
+		}
+		utils.Error(c, http.StatusInternalServerError, "SERVER_ERROR", "không thể cập nhật trạng thái game")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, "Cập nhật trạng thái thành công")
+}
+
+
 // SearchGames godoc
 // @Summary      Tìm kiếm Game
 // @Description  Tìm kiếm game theo tên có phân trang

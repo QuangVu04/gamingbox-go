@@ -9,7 +9,7 @@ import (
 type GameLogRepository interface {
 	GetByUserID(userID uint, limit int) ([]models.GameLog, error)
 	GetBacklogByUserID(userID uint, limit int) ([]models.GameLog, error)
-	GetByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error)
+	GetByUserIDPaginated(userID uint, status string, page, limit int) ([]models.GameLog, int64, error)
 	GetBacklogByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error)
 	LogGame(log *models.GameLog) error
 	RemoveLog(userID, gameID uint) error
@@ -43,17 +43,34 @@ func (r *gameLogRepository) GetBacklogByUserID(userID uint, limit int) ([]models
 	return logs, err
 }
 
-func (r *gameLogRepository) GetByUserIDPaginated(userID uint, page, limit int) ([]models.GameLog, int64, error) {
+func (r *gameLogRepository) GetByUserIDPaginated(userID uint, status string, page, limit int) ([]models.GameLog, int64, error) {
 	var logs []models.GameLog
 	var total int64
 	offset := (page - 1) * limit
-	db := r.db.Model(&models.GameLog{}).Where("user_id = ? AND status != ?", userID, "backlog")
+	db := r.db.Model(&models.GameLog{}).Where("user_id = ?", userID)
+	if status == "playing" {
+		db = db.Where("status = ?", "playing")
+	} else if status == "played" {
+		db = db.Where("status IN ?", []string{"completed", "dropped"})
+	} else {
+		db = db.Where("status != ?", "backlog")
+	}
+
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
-		Where("user_id = ? AND status != ?", userID, "backlog").
-		Order("logged_at desc").Offset(offset).Limit(limit).Find(&logs).Error
+
+	query := r.db.Preload("Game.Images", "img_type IN ?", []string{"header", "cover"}).
+		Where("user_id = ?", userID)
+	if status == "playing" {
+		query = query.Where("status = ?", "playing")
+	} else if status == "played" {
+		query = query.Where("status IN ?", []string{"completed", "dropped"})
+	} else {
+		query = query.Where("status != ?", "backlog")
+	}
+
+	err := query.Order("logged_at desc").Offset(offset).Limit(limit).Find(&logs).Error
 	return logs, total, err
 }
 
