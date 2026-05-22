@@ -75,6 +75,7 @@ type GameDetailResponse struct {
 	SimilarGames          []GameTrendingResponse  `json:"similar_games"`
 	PlaysCount            int                     `json:"plays_count"`
 	PlayingCount          int                     `json:"playing_count"`
+	DroppedCount          int                     `json:"dropped_count"`
 	BacklogCount          int                     `json:"backlog_count"`
 	WishlistCount         int                     `json:"wishlist_count"`
 	RatingCount           int                     `json:"rating_count"`

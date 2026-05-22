@@ -243,6 +243,7 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 	// Fetch dynamic stats from database
 	var playsCount int64
 	var playingCount int64
+	var droppedCount int64
 	var backlogCount int64
 	var wishlistCount int64
 	var listsCount int64
@@ -250,6 +251,7 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 
 	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "completed").Count(&playsCount)
 	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "playing").Count(&playingCount)
+	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "dropped").Count(&droppedCount)
 	s.db.Model(&models.GameLog{}).Where("game_id = ? AND status = ?", id, "backlog").Count(&backlogCount)
 	
 	s.db.Table("list_entries").
@@ -284,6 +286,7 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 
 	resp.PlaysCount = int(playsCount)
 	resp.PlayingCount = int(playingCount)
+	resp.DroppedCount = int(droppedCount)
 	resp.BacklogCount = int(backlogCount)
 	resp.WishlistCount = int(wishlistCount)
 	resp.ListsCount = int(listsCount)
