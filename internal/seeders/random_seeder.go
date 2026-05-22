@@ -58,6 +58,7 @@ func SeedRandomData(db *gorm.DB) {
 	seedRandomUsers(db, 50) // Tạo ngẫu nhiên 50 người dùng
 	seedRandomInteractions(db)
 	SeedTodayActivity(db) // Seed thêm dữ liệu cho ngày hôm nay
+	SeedRandomLists(db)   // Seed thêm 15 danh sách (lists)
 	
 	log.Println("Random Seeder đã hoàn tất!")
 }
