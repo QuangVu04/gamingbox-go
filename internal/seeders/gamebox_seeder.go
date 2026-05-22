@@ -92,7 +92,9 @@ func SeedGameboxData(db *gorm.DB) {
 				GhiChu:   "Game cực hay",
 			})
 		}
-		db.Model(&list).Update("game_count", db.Model(&models.ListEntry{}).Where("list_id = ?", list.ID).Count)
+		var count int64
+		db.Model(&models.ListEntry{}).Where("list_id = ?", list.ID).Count(&count)
+		db.Model(&list).Update("game_count", int(count))
 	}
 
 	// 4. Seed Game Logs (Diary)
