@@ -75,6 +75,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		usersProtected.Use(middleware.Authenticate())
 		{
 			usersProtected.GET("/me", userHandler.Me)
+			usersProtected.PUT("/me", userHandler.UpdateProfile)
 			usersProtected.POST("/follow", userHandler.FollowUser)
 			usersProtected.PUT("/favorite-games", userHandler.UpdateFavoriteGames)
 		}

@@ -461,4 +461,42 @@ func (h *UserHandler) GetActivities(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, res)
-}
+}
+
+// UpdateProfile godoc
+// @Summary      Cập nhật Profile Người dùng
+// @Description  Cập nhật các thông tin cá nhân như Bio, Location, Avatar
+// @Tags         Users
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.UpdateProfileRequest true "Thông tin cập nhật"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /users/me [put]
+func (h *UserHandler) UpdateProfile(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	err := h.userService.UpdateProfile(userID, &req)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, dto.MessageResponse{
+		Status:  "success",
+		Message: "Cập nhật hồ sơ thành công",
+	})
+}
+

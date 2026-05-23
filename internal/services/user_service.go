@@ -24,6 +24,7 @@ type UserService interface {
 	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
 	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
 	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
+	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error
 }
 
 type userService struct {
@@ -645,5 +646,39 @@ func (s *userService) GetUserActivities(userID uint, page, limit int, filterType
 		},
 		Data: data,
 	}, nil
+}
+func (s *userService) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
+	}
+
+	if req.Username != nil && *req.Username != "" && *req.Username != user.Username {
+		existingUser, _ := s.userRepo.FindByUsername(*req.Username)
+		if existingUser != nil && existingUser.ID != userID {
+			return dto.NewServiceError("USERNAME_EXISTS", "Username đã có người sử dụng")
+		}
+		user.Username = *req.Username
+	}
+
+	if req.Email != nil && *req.Email != "" && *req.Email != user.Email {
+		existingUser, _ := s.userRepo.FindByEmail(*req.Email)
+		if existingUser != nil && existingUser.ID != userID {
+			return dto.NewServiceError("EMAIL_EXISTS", "Email đã có người sử dụng")
+		}
+		user.Email = *req.Email
+	}
+
+	if req.Bio != nil {
+		user.Bio = req.Bio
+	}
+	if req.Location != nil {
+		user.Location = req.Location
+	}
+	if req.AvatarURL != nil {
+		user.AvatarURL = req.AvatarURL
+	}
+
+	return s.userRepo.Update(user)
 }
 

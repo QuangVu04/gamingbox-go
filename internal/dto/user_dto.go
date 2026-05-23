@@ -12,6 +12,7 @@ type UserResponse struct {
     Username                string          `json:"username"`
     AvatarURL               *string         `json:"avatar_url"`
     Bio                     *string         `json:"bio"`
+    Location                *string         `json:"location"`
     Role                    models.UserRole `json:"role"`
     SteamID                 string          `json:"steam_id"`
     FollowerCount           int             `json:"follower_count"`
@@ -21,6 +22,14 @@ type UserResponse struct {
     GameLogsCount           int             `json:"game_logs_count"`
     AverageRating           float64         `json:"average_rating_count"`
     CreatedAt               time.Time       `json:"created_at"`
+}
+
+type UpdateProfileRequest struct {
+    Username  *string `json:"username"`
+    Email     *string `json:"email"`
+    Location  *string `json:"location"`
+    Bio       *string `json:"bio"`
+    AvatarURL *string `json:"avatar_url"`
 }
 
 // UserSummary contains basic information of a user for listing

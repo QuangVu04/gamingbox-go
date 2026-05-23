@@ -12,6 +12,7 @@ func ToUserResponse(user *models.User) *dto.UserResponse {
         Username:                user.Username,
         AvatarURL:               user.AvatarURL,
         Bio:                     user.Bio,
+        Location:                user.Location,
         Role:                    user.Role,
         SteamID:                 user.SteamID,
         FollowerCount:           user.FollowerCount,
