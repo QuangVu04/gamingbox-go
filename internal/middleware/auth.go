@@ -58,6 +58,28 @@ func GetCurrentUserID(c *gin.Context) (uint, bool) {
     return id, ok
 }
 
+func GetOptionalUserID(c *gin.Context) (uint, bool) {
+    if id, ok := GetCurrentUserID(c); ok {
+        return id, true
+    }
+
+    token := extractToken(c)
+    if token == "" {
+        return 0, false
+    }
+
+    claims, err := utils.ParseToken(token)
+    if err != nil {
+        return 0, false
+    }
+
+    if claims.Type != utils.AccessToken {
+        return 0, false
+    }
+
+    return claims.UserID, true
+}
+
 func extractToken(c *gin.Context) string {
     header := c.GetHeader("Authorization")
     if header == "" {

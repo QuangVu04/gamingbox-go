@@ -61,7 +61,7 @@ func SeedGameboxData(db *gorm.DB) {
 		for j := 0; j < rand.Intn(5); j++ {
 			commenter := users[rand.Intn(len(users))]
 			db.Create(&models.Comment{
-				ReviewID: review.ID,
+				ReviewID: &review.ID,
 				UserID:   commenter.ID,
 				Content:  "Bình luận thứ " + string(rune(j+1)) + " của " + commenter.Username,
 			})

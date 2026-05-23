@@ -571,7 +571,9 @@ func (s *userService) GetUserLists(userID uint, page, limit int) (*dto.Paginated
 	}
 	data := make([]dto.ListSummary, 0, len(lists))
 	for _, l := range lists {
-		data = append(data, mapper.ToListSummary(&l))
+		summary := mapper.ToListSummary(&l)
+		summary.IsLiked = s.listRepo.IsListLiked(userID, l.ID)
+		data = append(data, summary)
 	}
 	totalPages := int(total) / limit
 	if int(total)%limit != 0 { totalPages++ }

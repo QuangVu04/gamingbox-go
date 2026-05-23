@@ -31,10 +31,13 @@ type Rating struct {
 
 type Comment struct {
 	gorm.Model
-	ReviewID uint   `gorm:"index"`
+	ReviewID *uint  `gorm:"index"` // Nullable to support List comments
+	ListID   *uint  `gorm:"index"` // Nullable to support Review comments
 	UserID   uint   `gorm:"index"`
 	Content  string `gorm:"type:text"`
 	ParentID *uint  `gorm:"index"` // Nullable cho comment cấp 1
+
+	User User `gorm:"foreignKey:UserID;references:ID"`
 }
 
 type Like struct {

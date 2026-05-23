@@ -120,7 +120,7 @@ func (cm *CronManager) updateTrendingListsCache() {
 	log.Println("🔄 Updating trending lists cache...")
 	ctx := context.Background()
 
-	lists, _, err := cm.listService.GetTrendingLists(ctx, 1, DefaultPageLimit)
+	lists, _, err := cm.listService.GetTrendingLists(ctx, 0, 1, DefaultPageLimit)
 	if err != nil {
 		log.Printf("❌ Error updating trending lists cache: %v", err)
 		return

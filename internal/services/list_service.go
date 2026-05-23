@@ -15,12 +15,14 @@ import (
 )
 
 type ListService interface {
-	GetTrendingLists(ctx context.Context, page, limit int) ([]dto.ListTrendingResponse, *dto.PaginationDTO, error)
+	GetTrendingLists(ctx context.Context, userID uint, page, limit int) ([]dto.ListTrendingResponse, *dto.PaginationDTO, error)
 	CreateList(ctx context.Context, userID uint, req dto.CreateListRequest) (*dto.ListDetailResponse, error)
 	UpdateList(ctx context.Context, userID, listID uint, req dto.UpdateListRequest) (*dto.ListDetailResponse, error)
 	DeleteList(ctx context.Context, userID, listID uint) error
-	GetListDetail(ctx context.Context, listID uint) (*dto.ListDetailResponse, error)
-	GetGameLists(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error)
+	GetListDetail(ctx context.Context, userID uint, listID uint) (*dto.ListDetailResponse, error)
+	GetGameLists(ctx context.Context, userID uint, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error)
+	GetListComments(ctx context.Context, listID uint) ([]dto.CommentResponse, error)
+	AddListComment(ctx context.Context, userID, listID uint, req dto.CommentRequest) (*dto.CommentResponse, error)
 }
 
 type listService struct {
@@ -41,7 +43,7 @@ type CachedListResponse struct {
 	Pagination *dto.PaginationDTO         `json:"pagination"`
 }
 
-func (s *listService) GetTrendingLists(ctx context.Context, page, limit int) ([]dto.ListTrendingResponse, *dto.PaginationDTO, error) {
+func (s *listService) GetTrendingLists(ctx context.Context, userID uint, page, limit int) ([]dto.ListTrendingResponse, *dto.PaginationDTO, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -54,6 +56,9 @@ func (s *listService) GetTrendingLists(ctx context.Context, page, limit int) ([]
 	cached, err := redisUtil.GetCached[CachedListResponse](ctx, s.rdb, cacheKey, CacheTTL)
 	if err == nil && cached != nil {
 		log.Printf("✓ Cache hit for trending lists (page=%d, limit=%d)", page, limit)
+		if userID > 0 {
+			s.populateLikedStatus(userID, cached.Data)
+		}
 		return cached.Data, cached.Pagination, nil
 	}
 
@@ -87,9 +92,10 @@ func (s *listService) GetTrendingLists(ctx context.Context, page, limit int) ([]
 		Data:       responses,
 		Pagination: pagination,
 	}
-	err = redisUtil.SetCached(ctx, s.rdb, cacheKey, cacheData, CacheTTL)
-	if err != nil {
-		log.Printf("⚠ Failed to cache trending lists: %v", err)
+	_ = redisUtil.SetCached(ctx, s.rdb, cacheKey, cacheData, CacheTTL)
+
+	if userID > 0 {
+		s.populateLikedStatus(userID, responses)
 	}
 
 	return responses, pagination, nil
@@ -117,8 +123,9 @@ func (s *listService) CreateList(ctx context.Context, userID uint, req dto.Creat
 	if err := s.listRepo.Create(list); err != nil {
 		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể tạo danh sách")
 	}
+	s.clearTrendingListsCache(ctx)
 
-	return s.GetListDetail(ctx, list.ID)
+	return s.GetListDetail(ctx, userID, list.ID)
 }
 
 func (s *listService) UpdateList(ctx context.Context, userID, listID uint, req dto.UpdateListRequest) (*dto.ListDetailResponse, error) {
@@ -160,8 +167,9 @@ func (s *listService) UpdateList(ctx context.Context, userID, listID uint, req d
 	if err := s.listRepo.Update(list); err != nil {
 		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể cập nhật danh sách")
 	}
+	s.clearTrendingListsCache(ctx)
 
-	return s.GetListDetail(ctx, listID)
+	return s.GetListDetail(ctx, userID, listID)
 }
 
 func (s *listService) DeleteList(ctx context.Context, userID, listID uint) error {
@@ -174,18 +182,27 @@ func (s *listService) DeleteList(ctx context.Context, userID, listID uint) error
 		return dto.NewServiceError("FORBIDDEN", "không có quyền xóa")
 	}
 
-	return s.listRepo.Delete(listID)
+	if err := s.listRepo.Delete(listID); err != nil {
+		return err
+	}
+	s.clearTrendingListsCache(ctx)
+	return nil
 }
 
-func (s *listService) GetListDetail(ctx context.Context, listID uint) (*dto.ListDetailResponse, error) {
+func (s *listService) GetListDetail(ctx context.Context, userID uint, listID uint) (*dto.ListDetailResponse, error) {
 	list, err := s.listRepo.FindDetailByID(listID)
 	if err != nil {
 		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
 	}
 
-	return mapper.ToListDetailResponse(list), nil
+	res := mapper.ToListDetailResponse(list)
+	if userID > 0 {
+		res.IsLiked = s.listRepo.IsListLiked(userID, list.ID)
+	}
+	return res, nil
 }
-func (s *listService) GetGameLists(ctx context.Context, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error) {
+
+func (s *listService) GetGameLists(ctx context.Context, userID uint, gameID uint, page, limit int, sort string) (*dto.GameListsResponse, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -199,6 +216,9 @@ func (s *listService) GetGameLists(ctx context.Context, gameID uint, page, limit
 	}
 
 	responses := mapper.ToTrendingListResponsesFromModels(lists)
+	if userID > 0 {
+		s.populateLikedStatus(userID, responses)
+	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(limit)))
 	if totalPages < 1 {
@@ -214,4 +234,79 @@ func (s *listService) GetGameLists(ctx context.Context, gameID uint, page, limit
 			Limit:        limit,
 		},
 	}, nil
+}
+
+func (s *listService) GetListComments(ctx context.Context, listID uint) ([]dto.CommentResponse, error) {
+	comments, err := s.listRepo.GetComments(listID)
+	if err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể lấy bình luận")
+	}
+
+	usersMap := make(map[uint]models.User)
+	for _, c := range comments {
+		if c.User.ID != 0 {
+			usersMap[c.UserID] = c.User
+		}
+	}
+
+	return mapper.ToCommentResponses(comments, usersMap), nil
+}
+
+func (s *listService) AddListComment(ctx context.Context, userID, listID uint, req dto.CommentRequest) (*dto.CommentResponse, error) {
+	_, err := s.listRepo.FindByID(listID)
+	if err != nil {
+		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
+	}
+
+	comment := &models.Comment{
+		ListID:   &listID,
+		UserID:   userID,
+		Content:  req.Content,
+		ParentID: req.ParentID,
+	}
+
+	if err := s.listRepo.AddComment(comment); err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể thêm bình luận")
+	}
+
+	// Fetch again to get User info preloaded (simpler way)
+	comments, _ := s.listRepo.GetComments(listID)
+	for _, c := range comments {
+		if c.ID == comment.ID {
+			res := mapper.ToCommentResponse(&c, &c.User)
+			return res, nil
+		}
+	}
+
+	return nil, dto.NewServiceError("SERVER_ERROR", "lỗi không xác định")
+}
+
+func (s *listService) populateLikedStatus(userID uint, lists []dto.ListTrendingResponse) {
+	if len(lists) == 0 {
+		return
+	}
+	var listIDs []uint
+	for _, l := range lists {
+		listIDs = append(listIDs, l.ListID)
+	}
+	likedIDs := s.listRepo.GetLikedListIDs(userID, listIDs)
+	likedMap := make(map[uint]bool)
+	for _, id := range likedIDs {
+		likedMap[id] = true
+	}
+	for i := range lists {
+		lists[i].IsLiked = likedMap[lists[i].ListID]
+	}
+}
+
+func (s *listService) clearTrendingListsCache(ctx context.Context) {
+	if s.rdb == nil {
+		return
+	}
+
+	pattern := "trending:lists:*"
+	iter := s.rdb.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		_ = s.rdb.Del(ctx, iter.Val())
+	}
 }
