@@ -24,7 +24,7 @@ type GameService interface {
 	GetTrendingGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	RateGame(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error)
 	RateGameDB(ctx context.Context, userID, gameID uint, rating float64) (*dto.RateGameResponse, error)
-	GetGameByID(ctx context.Context, id uint) (*dto.GameDetailResponse, error)
+	GetGameByID(ctx context.Context, currentUserID, id uint) (*dto.GameDetailResponse, error)
 	GetGameUserState(ctx context.Context, userID, gameID uint) (*dto.GameUserStateResponse, error)
 	SearchGames(ctx context.Context, query, category, platform, sort string, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
 	GetPopularGames(ctx context.Context, page, limit int) ([]dto.GameTrendingResponse, *dto.PaginationDTO, error)
@@ -203,7 +203,7 @@ func (s *gameService) RateGameDB(ctx context.Context, userID, gameID uint, ratin
 	return result, nil
 }
 
-func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetailResponse, error) {
+func (s *gameService) GetGameByID(ctx context.Context, currentUserID, id uint) (*dto.GameDetailResponse, error) {
 	game, err := s.gameRepo.GetByID(id)
 	if err != nil {
 		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy game")
@@ -211,13 +211,17 @@ func (s *gameService) GetGameByID(ctx context.Context, id uint) (*dto.GameDetail
 
 	// 1. Fetch Popular Reviews (top 3)
 	popularReviews, _ := s.reviewRepo.GetByGameID(id, "popular", 3)
-	popCommentCounts, _ := s.reviewRepo.GetCommentCounts(getReviewIDs(popularReviews))
-	popularDTOs := mapper.ToReviewCompactResponses(popularReviews, popCommentCounts)
+	popReviewIDs := getReviewIDs(popularReviews)
+	popCommentCounts, _ := s.reviewRepo.GetCommentCounts(popReviewIDs)
+	popLikedReviews, _ := s.reviewRepo.GetUserLikedReviews(currentUserID, popReviewIDs)
+	popularDTOs := mapper.ToReviewCompactResponses(popularReviews, popCommentCounts, popLikedReviews)
 
 	// 2. Fetch Recent Reviews (top 3)
 	recentReviews, _ := s.reviewRepo.GetByGameID(id, "recent", 3)
-	recCommentCounts, _ := s.reviewRepo.GetCommentCounts(getReviewIDs(recentReviews))
-	recentDTOs := mapper.ToReviewCompactResponses(recentReviews, recCommentCounts)
+	recReviewIDs := getReviewIDs(recentReviews)
+	recCommentCounts, _ := s.reviewRepo.GetCommentCounts(recReviewIDs)
+	recLikedReviews, _ := s.reviewRepo.GetUserLikedReviews(currentUserID, recReviewIDs)
+	recentDTOs := mapper.ToReviewCompactResponses(recentReviews, recCommentCounts, recLikedReviews)
 
 	// 3. More from this studio (top 6)
 	moreFromStudio, _ := s.gameRepo.GetByStudio(game.StudioID, game.ID, 6)

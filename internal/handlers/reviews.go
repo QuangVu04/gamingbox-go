@@ -38,8 +38,9 @@ func (h *ReviewHandler) TrendingReviews(c *gin.Context) {
 	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
 
 	// Call service with caching
+	userID, _ := middleware.GetCurrentUserID(c)
 	ctx := context.Background()
-	reviews, pagination, err := h.reviewService.GetTrendingReviews(ctx, page, limit)
+	reviews, pagination, err := h.reviewService.GetTrendingReviews(ctx, userID, page, limit)
 	if err != nil {
 		if serviceErr, ok := err.(*dto.ServiceError); ok {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -187,8 +188,9 @@ func (h *ReviewHandler) GetComments(c *gin.Context) {
 		return
 	}
 
+	userID, _ := middleware.GetCurrentUserID(c)
 	ctx := context.Background()
-	comments, err := h.reviewService.GetComments(ctx, uint(id))
+	comments, err := h.reviewService.GetComments(ctx, userID, uint(id))
 	if err != nil {
 		handleReviewError(c, err)
 		return
@@ -254,8 +256,9 @@ func (h *ReviewHandler) GetReviewDetail(c *gin.Context) {
 		return
 	}
 
+	userID, _ := middleware.GetCurrentUserID(c)
 	ctx := context.Background()
-	review, err := h.reviewService.GetReviewByID(ctx, uint(id))
+	review, err := h.reviewService.GetReviewByID(ctx, userID, uint(id))
 	if err != nil {
 		handleReviewError(c, err)
 		return
@@ -263,6 +266,7 @@ func (h *ReviewHandler) GetReviewDetail(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, review)
 }
+
 // GetGameReviews godoc
 // @Summary      Lấy danh sách Review của Game
 // @Description  Lấy danh sách các bài đánh giá của một game (Phân trang 25)
@@ -286,8 +290,9 @@ func (h *ReviewHandler) GetGameReviews(c *gin.Context) {
 	limit := utils.GetQueryIntWithRange(c, "limit", 25, 1, 100)
 	sort := c.DefaultQuery("sort", "newest")
 
+	userID, _ := middleware.GetCurrentUserID(c)
 	ctx := context.Background()
-	result, err := h.reviewService.GetGameReviews(ctx, uint(gameID), page, limit, sort)
+	result, err := h.reviewService.GetGameReviews(ctx, userID, uint(gameID), page, limit, sort)
 	if err != nil {
 		handleReviewError(c, err)
 		return

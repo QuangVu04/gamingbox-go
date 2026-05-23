@@ -20,6 +20,8 @@ type ReviewRepository interface {
 	Delete(id uint) error
 	GetComments(reviewID uint) ([]models.Comment, error)
 	AddComment(comment *models.Comment) error
+	GetUserLikedReviews(userID uint, reviewIDs []uint) (map[uint]bool, error)
+	GetUserLikedComments(userID uint, commentIDs []uint) (map[uint]bool, error)
 	GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error)
 	GetGameReviews(gameID uint, page, limit int, sort string) ([]models.Review, int64, error)
 	Count() (int64, error)
@@ -125,7 +127,7 @@ func (r *reviewRepository) GetTrendingReviews(page, limit int) ([]models.Review,
 
 func (r *reviewRepository) FindByID(id uint) (*models.Review, error) {
 	var review models.Review
-	err := r.db.First(&review, id).Error
+	err := r.db.Preload("Game.Images").Preload("User").First(&review, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +163,42 @@ func (r *reviewRepository) GetComments(reviewID uint) ([]models.Comment, error) 
 
 func (r *reviewRepository) AddComment(comment *models.Comment) error {
 	return r.db.Create(comment).Error
+}
+
+func (r *reviewRepository) GetUserLikedReviews(userID uint, reviewIDs []uint) (map[uint]bool, error) {
+	likedMap := make(map[uint]bool)
+	if len(reviewIDs) == 0 || userID == 0 {
+		return likedMap, nil
+	}
+	var likedIDs []uint
+	err := r.db.Model(&models.Like{}).
+		Where("user_id = ? AND target_type = ? AND target_id IN ?", userID, "review", reviewIDs).
+		Pluck("target_id", &likedIDs).Error
+	if err != nil {
+		return likedMap, err
+	}
+	for _, id := range likedIDs {
+		likedMap[id] = true
+	}
+	return likedMap, nil
+}
+
+func (r *reviewRepository) GetUserLikedComments(userID uint, commentIDs []uint) (map[uint]bool, error) {
+	likedMap := make(map[uint]bool)
+	if len(commentIDs) == 0 || userID == 0 {
+		return likedMap, nil
+	}
+	var likedIDs []uint
+	err := r.db.Model(&models.Like{}).
+		Where("user_id = ? AND target_type = ? AND target_id IN ?", userID, "comment", commentIDs).
+		Pluck("target_id", &likedIDs).Error
+	if err != nil {
+		return likedMap, err
+	}
+	for _, id := range likedIDs {
+		likedMap[id] = true
+	}
+	return likedMap, nil
 }
 
 func (r *reviewRepository) GetByGameID(gameID uint, orderBy string, limit int) ([]models.Review, error) {

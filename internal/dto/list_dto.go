@@ -14,9 +14,10 @@ type ListTrendingResponse struct {
 	Author           ListAuthorInfo  `json:"author"`
 	GameCount        int             `json:"game_count"`
 	Thumbnails       []string        `json:"thumbnails"`
-	WeeklyLikesCount int64             `json:"weekly_likes_count"`
-	TotalLikes       int             `json:"total_likes"`
-	CreatedAt        string          `json:"created_at"`
+	WeeklyLikesCount int64          `json:"weekly_likes_count"`
+	TotalLikes       int            `json:"total_likes"`
+	UserHasLiked     bool           `json:"user_has_liked"`
+	CreatedAt        string         `json:"created_at"`
 }
 
 type CreateListRequest struct {
@@ -50,6 +51,7 @@ type ListDetailResponse struct {
 	ThumbnailImg string         `json:"thumbnail_img"`
 	GameCount    int            `json:"game_count"`
 	LikeCount    int            `json:"like_count"`
+	UserHasLiked bool           `json:"user_has_liked"`
 	CreatedAt    string         `json:"created_at"`
 	Games        []ListEntryDTO `json:"games"`
 }

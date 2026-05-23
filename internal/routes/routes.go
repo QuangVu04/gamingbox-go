@@ -82,9 +82,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		games.GET("/platforms", gameHandler.GetPlatforms)
 		games.GET("/studios", gameHandler.SearchStudios)
 		games.GET("/steam-studios", gameHandler.SearchSteamStudios)
-		games.GET("/:id", gameHandler.GetGameDetail)
+		games.GET("/:id", middleware.OptionalAuth(), gameHandler.GetGameDetail)
 		games.GET("/:id/likes", likeHandler.GetGameLikes)
-		games.GET("/:id/reviews", reviewHandler.GetGameReviews)
+		games.GET("/:id/reviews", middleware.OptionalAuth(), reviewHandler.GetGameReviews)
 		games.GET("/:id/lists", listHandler.GetGameLists)
 
 		gamesProtected := games.Group("")
@@ -103,9 +103,9 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 
 	reviews := v1.Group("/reviews")
 	{
-		reviews.GET("/trending", reviewHandler.TrendingReviews)
-		reviews.GET("/:id", reviewHandler.GetReviewDetail)
-		reviews.GET("/:id/comments", reviewHandler.GetComments)
+		reviews.GET("/trending", middleware.OptionalAuth(), reviewHandler.TrendingReviews)
+		reviews.GET("/:id", middleware.OptionalAuth(), reviewHandler.GetReviewDetail)
+		reviews.GET("/:id/comments", middleware.OptionalAuth(), reviewHandler.GetComments)
 
 		reviewsProtected := reviews.Group("")
 		reviewsProtected.Use(middleware.Authenticate())
@@ -119,8 +119,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 
 	lists := v1.Group("/lists")
 	{
-		lists.GET("/trending", listHandler.TrendingLists)
-		lists.GET("/:id", listHandler.GetListDetail)
+		lists.GET("/trending", middleware.OptionalAuth(), listHandler.TrendingLists)
+		lists.GET("/:id", middleware.OptionalAuth(), listHandler.GetListDetail)
 
 		listsProtected := lists.Group("")
 		listsProtected.Use(middleware.Authenticate())
@@ -142,6 +142,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		likesGroup.POST("/games/:id/like", likeHandler.LikeGame)
 		likesGroup.POST("/reviews/:id/like", likeHandler.LikeReview)
 		likesGroup.POST("/lists/:id/like", likeHandler.LikeList)
+		likesGroup.POST("/comments/:id/like", likeHandler.LikeComment)
 	}
 
 	notifications := v1.Group("/notifications")

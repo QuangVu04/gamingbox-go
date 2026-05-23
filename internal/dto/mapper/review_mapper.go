@@ -18,8 +18,7 @@ func ToReviewSummary(review *models.Review, commentCount int) dto.ReviewSummary 
 	}
 }
 
-// ToReviewTrendingResponse converts a Review model to a ReviewTrendingResponse DTO
-func ToReviewTrendingResponse(review *models.Review, commentCount int) *dto.ReviewTrendingResponse {
+func ToReviewTrendingResponse(review *models.Review, commentCount int, userHasLiked bool) *dto.ReviewTrendingResponse {
 	if review == nil {
 		return nil
 	}
@@ -47,8 +46,10 @@ func ToReviewTrendingResponse(review *models.Review, commentCount int) *dto.Revi
 		}
 	}
 
-	// Get user avatar
-	userAvatar := review.User.AvatarURL
+	var userAvatar *string
+	if review.User.AvatarURL != nil {
+		userAvatar = review.User.AvatarURL
+	}
 
 	return &dto.ReviewTrendingResponse{
 		ReviewID: review.ID,
@@ -63,20 +64,23 @@ func ToReviewTrendingResponse(review *models.Review, commentCount int) *dto.Revi
 			Username: review.User.Username,
 			Avatar:   userAvatar,
 		},
+		Rating:       review.Rating,
 		Content:      review.Content,
 		LikeCount:    review.LikeCount,
 		CommentCount: commentCount,
 		IsSpoiler:    review.IsSpoiler,
+		UserHasLiked: userHasLiked,
 		CreatedAt:    review.CreatedAt.Format("2006-01-02"),
 	}
 }
 
 // ToReviewTrendingResponses converts multiple Review models to ReviewTrendingResponse DTOs
-func ToReviewTrendingResponses(reviews []models.Review, commentCounts map[uint]int) []dto.ReviewTrendingResponse {
+func ToReviewTrendingResponses(reviews []models.Review, commentCounts map[uint]int, likedReviews map[uint]bool) []dto.ReviewTrendingResponse {
 	responses := make([]dto.ReviewTrendingResponse, 0, len(reviews))
 	for i := range reviews {
 		count := commentCounts[reviews[i].ID]
-		resp := ToReviewTrendingResponse(&reviews[i], count)
+		hasLiked := likedReviews[reviews[i].ID]
+		resp := ToReviewTrendingResponse(&reviews[i], count, hasLiked)
 		if resp != nil {
 			responses = append(responses, *resp)
 		}
@@ -85,9 +89,14 @@ func ToReviewTrendingResponses(reviews []models.Review, commentCounts map[uint]i
 }
 
 // ToReviewCompactResponse converts a Review model to a ReviewCompactResponse DTO (no game info)
-func ToReviewCompactResponse(review *models.Review, commentCount int) *dto.ReviewCompactResponse {
+func ToReviewCompactResponse(review *models.Review, commentCount int, userHasLiked bool) *dto.ReviewCompactResponse {
 	if review == nil {
 		return nil
+	}
+
+	var userAvatar *string
+	if review.User.AvatarURL != nil {
+		userAvatar = review.User.AvatarURL
 	}
 
 	return &dto.ReviewCompactResponse{
@@ -95,22 +104,25 @@ func ToReviewCompactResponse(review *models.Review, commentCount int) *dto.Revie
 		User: dto.ReviewUserInfo{
 			ID:       review.User.ID,
 			Username: review.User.Username,
-			Avatar:   review.User.AvatarURL,
+			Avatar:   userAvatar,
 		},
+		Rating:       review.Rating,
 		Content:      review.Content,
 		LikeCount:    review.LikeCount,
 		CommentCount: commentCount,
 		IsSpoiler:    review.IsSpoiler,
+		UserHasLiked: userHasLiked,
 		CreatedAt:    review.CreatedAt.Format("2006-01-02"),
 	}
 }
 
 // ToReviewCompactResponses converts multiple Review models to ReviewCompactResponse DTOs
-func ToReviewCompactResponses(reviews []models.Review, commentCounts map[uint]int) []dto.ReviewCompactResponse {
+func ToReviewCompactResponses(reviews []models.Review, commentCounts map[uint]int, likedReviews map[uint]bool) []dto.ReviewCompactResponse {
 	responses := make([]dto.ReviewCompactResponse, 0, len(reviews))
 	for i := range reviews {
 		count := commentCounts[reviews[i].ID]
-		resp := ToReviewCompactResponse(&reviews[i], count)
+		hasLiked := likedReviews[reviews[i].ID]
+		resp := ToReviewCompactResponse(&reviews[i], count, hasLiked)
 		if resp != nil {
 			responses = append(responses, *resp)
 		}
@@ -118,7 +130,7 @@ func ToReviewCompactResponses(reviews []models.Review, commentCounts map[uint]in
 	return responses
 }
 
-func ToCommentResponse(comment *models.Comment, user *models.User) *dto.CommentResponse {
+func ToCommentResponse(comment *models.Comment, user *models.User, userHasLiked bool) *dto.CommentResponse {
 	if comment == nil {
 		return nil
 	}
@@ -130,17 +142,20 @@ func ToCommentResponse(comment *models.Comment, user *models.User) *dto.CommentR
 			Username: user.Username,
 			Avatar:   user.AvatarURL,
 		},
-		Content:   comment.Content,
-		ParentID:  comment.ParentID,
-		CreatedAt: comment.CreatedAt.Format("2006-01-02 15:04:05"),
+		Content:      comment.Content,
+		ParentID:     comment.ParentID,
+		LikeCount:    comment.LikeCount,
+		UserHasLiked: userHasLiked,
+		CreatedAt:    comment.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 
-func ToCommentResponses(comments []models.Comment, users map[uint]models.User) []dto.CommentResponse {
+func ToCommentResponses(comments []models.Comment, users map[uint]models.User, likedComments map[uint]bool) []dto.CommentResponse {
 	responses := make([]dto.CommentResponse, 0, len(comments))
 	for _, c := range comments {
 		user := users[c.UserID]
-		resp := ToCommentResponse(&c, &user)
+		hasLiked := likedComments[c.ID]
+		resp := ToCommentResponse(&c, &user, hasLiked)
 		if resp != nil {
 			responses = append(responses, *resp)
 		}

@@ -1,7 +1,6 @@
 package seeders
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 

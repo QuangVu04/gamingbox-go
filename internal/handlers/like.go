@@ -158,3 +158,37 @@ func (h *LikeHandler) GetGameLikes(c *gin.Context) {
 
 	utils.Success(c, http.StatusOK, result)
 }
+
+// LikeComment godoc
+// @Summary      Thích hoặc Bỏ thích Comment
+// @Description  Người dùng thích (hoặc bỏ thích) một comment.
+// @Tags         Likes
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id path int true "ID của Comment"
+// @Success      200  {object}  dto.SuccessResponse[dto.LikeGameResponse]
+// @Failure      400  {object}  dto.ErrorResponse
+// @Router       /comments/{id}/like [post]
+func (h *LikeHandler) LikeComment(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		utils.ValidationError(c, "comment_id không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.likeService.ToggleLike(ctx, userID, uint(id), "comment")
+	if err != nil {
+		handleLikeError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, result)
+}

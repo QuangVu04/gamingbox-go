@@ -130,8 +130,9 @@ func (h *GameHandler) GetGameDetail(c *gin.Context) {
 		return
 	}
 
+	userID, _ := middleware.GetCurrentUserID(c)
 	ctx := context.Background()
-	game, err := h.gameService.GetGameByID(ctx, uint(id))
+	game, err := h.gameService.GetGameByID(ctx, userID, uint(id))
 	if err != nil {
 		handleGameInteractionError(c, err)
 		return

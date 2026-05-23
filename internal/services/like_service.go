@@ -51,7 +51,7 @@ func NewLikeService(
 // ToggleLike queues the like/unlike request to Redis for async execution
 func (s *likeService) ToggleLike(ctx context.Context, userID, targetID uint, targetType string) (*dto.LikeGameResponse, error) {
 	// Validate targetType
-	if targetType != "game" && targetType != "review" && targetType != "list" {
+	if targetType != "game" && targetType != "review" && targetType != "list" && targetType != "comment" {
 		return nil, dto.NewServiceError("VALIDATION_ERROR", "loại target không hợp lệ")
 	}
 
@@ -93,7 +93,7 @@ func (s *likeService) ToggleLike(ctx context.Context, userID, targetID uint, tar
 // ToggleLikeDB performs like/unlike with atomic counter update in database
 func (s *likeService) ToggleLikeDB(ctx context.Context, userID, targetID uint, targetType string) (bool, error) {
 	// Validate targetType
-	if targetType != "game" && targetType != "review" && targetType != "list" {
+	if targetType != "game" && targetType != "review" && targetType != "list" && targetType != "comment" {
 		return false, dto.NewServiceError("VALIDATION_ERROR", "loại target không hợp lệ")
 	}
 
@@ -145,7 +145,7 @@ func (s *likeService) handleLikeNotification(senderID, targetID uint, targetType
 
 // CheckLike checks if user has already liked the target
 func (s *likeService) CheckLike(ctx context.Context, userID, targetID uint, targetType string) (bool, error) {
-	if targetType != "game" && targetType != "review" && targetType != "list" {
+	if targetType != "game" && targetType != "review" && targetType != "list" && targetType != "comment" {
 		return false, dto.NewServiceError("VALIDATION_ERROR", "loại target không hợp lệ")
 	}
 

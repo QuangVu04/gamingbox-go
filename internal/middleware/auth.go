@@ -37,6 +37,21 @@ func Authenticate() gin.HandlerFunc {
     }
 }
 
+func OptionalAuth() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        token := extractToken(c)
+        if token != "" {
+            claims, err := utils.ParseToken(token)
+            if err == nil && claims.Type == utils.AccessToken {
+                c.Set("userID", claims.UserID)
+                c.Set("username", claims.Username)
+                c.Set("role", claims.Role)
+            }
+        }
+        c.Next()
+    }
+}
+
 func RequireAdmin() gin.HandlerFunc {
     return func(c *gin.Context) {
         role, _ := c.Get("role")

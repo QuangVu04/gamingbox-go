@@ -106,7 +106,7 @@ func (cm *CronManager) updateTrendingReviewsCache() {
 	log.Println("🔄 Updating trending reviews cache...")
 	ctx := context.Background()
 
-	reviews, _, err := cm.reviewService.GetTrendingReviews(ctx, 1, DefaultPageLimit)
+	reviews, _, err := cm.reviewService.GetTrendingReviews(ctx, 0, 1, DefaultPageLimit)
 	if err != nil {
 		log.Printf("❌ Error updating trending reviews cache: %v", err)
 		return

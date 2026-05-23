@@ -25,6 +25,7 @@ type ReviewTrendingResponse struct {
 	LikeCount    int            `json:"like_count"`
 	CommentCount int            `json:"comment_count"`
 	IsSpoiler    bool           `json:"is_spoiler"`
+	UserHasLiked bool           `json:"user_has_liked"`
 	CreatedAt    string         `json:"created_at"`
 }
 
@@ -36,6 +37,7 @@ type ReviewCompactResponse struct {
 	LikeCount    int            `json:"like_count"`
 	CommentCount int            `json:"comment_count"`
 	IsSpoiler    bool           `json:"is_spoiler"`
+	UserHasLiked bool           `json:"user_has_liked"`
 	CreatedAt    string         `json:"created_at"`
 }
 
@@ -58,11 +60,13 @@ type CommentRequest struct {
 }
 
 type CommentResponse struct {
-	ID        uint           `json:"id"`
-	User      ReviewUserInfo `json:"user"`
-	Content   string         `json:"content"`
-	ParentID  *uint          `json:"parent_id"`
-	CreatedAt string         `json:"created_at"`
+	ID           uint           `json:"id"`
+	User         ReviewUserInfo `json:"user"`
+	Content      string         `json:"content"`
+	ParentID     *uint          `json:"parent_id"`
+	LikeCount    int            `json:"like_count"`
+	UserHasLiked bool           `json:"user_has_liked"`
+	CreatedAt    string         `json:"created_at"`
 }
 type GameReviewsResponse struct {
 	Reviews    []ReviewCompactResponse `json:"reviews"`
