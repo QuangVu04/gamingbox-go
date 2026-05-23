@@ -275,7 +275,7 @@ func (s *listService) GetListComments(ctx context.Context, listID uint) ([]dto.C
 		}
 	}
 
-	return mapper.ToCommentResponses(comments, usersMap), nil
+	return mapper.ToCommentResponses(comments, usersMap, nil), nil
 }
 
 func (s *listService) AddListComment(ctx context.Context, userID, listID uint, req dto.CommentRequest) (*dto.CommentResponse, error) {
@@ -299,7 +299,7 @@ func (s *listService) AddListComment(ctx context.Context, userID, listID uint, r
 	comments, _ := s.listRepo.GetComments(listID)
 	for _, c := range comments {
 		if c.ID == comment.ID {
-			res := mapper.ToCommentResponse(&c, &c.User)
+			res := mapper.ToCommentResponse(&c, &c.User, false)
 			return res, nil
 		}
 	}
@@ -321,7 +321,7 @@ func (s *listService) populateLikedStatus(userID uint, lists []dto.ListTrendingR
 		likedMap[id] = true
 	}
 	for i := range lists {
-		lists[i].IsLiked = likedMap[lists[i].ListID]
+		lists[i].UserHasLiked = likedMap[lists[i].ListID]
 	}
 }
 

@@ -45,17 +45,29 @@ func ToListSummary(list *models.List) dto.ListSummary {
 			break
 		}
 		if entry.Game.ID > 0 {
+			thumbnailImg := ""
 			for _, img := range entry.Game.Images {
-				if img.ImgType == "header" || img.ImgType == "cover" {
-					thumbnailImg := img.Thumb
-					if img.Thumb == "" {
+				if img.ImgType == "cover" {
+					thumbnailImg = img.Thumb
+					if thumbnailImg == "" {
 						thumbnailImg = img.OgURL
-					}
-					if thumbnailImg != "" {
-						thumbnails = append(thumbnails, thumbnailImg)
 					}
 					break
 				}
+			}
+			if thumbnailImg == "" {
+				for _, img := range entry.Game.Images {
+					if img.ImgType == "header" {
+						thumbnailImg = img.Thumb
+						if thumbnailImg == "" {
+							thumbnailImg = img.OgURL
+						}
+						break
+					}
+				}
+			}
+			if thumbnailImg != "" {
+				thumbnails = append(thumbnails, thumbnailImg)
 			}
 		}
 	}

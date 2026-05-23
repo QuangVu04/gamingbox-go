@@ -11,6 +11,8 @@ type GameTrendingResponse struct {
 	TotalReviews  int       `json:"total_reviews"`
 	LikeCount     int       `json:"like_count"`
 	ReleaseDate   time.Time `json:"release_date"`
+	HeaderImage   string    `json:"header_image,omitempty"`
+	CoverImage    string    `json:"cover_image,omitempty"`
 	Studios       []string  `json:"studios"`
 	Genres        []string  `json:"genres"`
 }

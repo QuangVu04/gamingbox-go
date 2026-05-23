@@ -60,10 +60,14 @@ func ToGameTrendingResponse(game *models.GameTrending) *dto.GameTrendingResponse
 
 	// Extract thumbnail from images
 	thumbnail := ""
+	headerImage := ""
+	coverImage := ""
 	for _, img := range game.Game.Images {
 		if img.ImgType == "cover" {
 			thumbnail = img.OgURL
-			break
+			coverImage = img.OgURL
+		} else if img.ImgType == "header" {
+			headerImage = img.OgURL
 		}
 	}
 	if thumbnail == "" {
@@ -93,6 +97,8 @@ func ToGameTrendingResponse(game *models.GameTrending) *dto.GameTrendingResponse
 		GameID:        game.Game.ID,
 		Title:         game.Game.Title,
 		Thumbnail:     thumbnail,
+		HeaderImage:   headerImage,
+		CoverImage:    coverImage,
 		TrendingScore: game.TrendingScore,
 		AvgRating:     game.Game.AvgRating,
 		TotalReviews:  game.Game.ReviewCount,
@@ -184,10 +190,14 @@ func ToSimpleGameResponse(game *models.Game) *dto.GameTrendingResponse {
 	}
 
 	thumbnail := ""
+	headerImage := ""
+	coverImage := ""
 	for _, img := range game.Images {
 		if img.ImgType == "cover" {
 			thumbnail = img.OgURL
-			break
+			coverImage = img.OgURL
+		} else if img.ImgType == "header" {
+			headerImage = img.OgURL
 		}
 	}
 	if thumbnail == "" {
@@ -208,6 +218,8 @@ func ToSimpleGameResponse(game *models.Game) *dto.GameTrendingResponse {
 		GameID:       game.ID,
 		Title:        game.Title,
 		Thumbnail:    thumbnail,
+		HeaderImage:  headerImage,
+		CoverImage:   coverImage,
 		AvgRating:    game.AvgRating,
 		TotalReviews: game.ReviewCount,
 		ReleaseDate:  game.ReleaseDate,

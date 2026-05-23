@@ -21,17 +21,29 @@ func ToTrendingListResponse(listData *repositories.ListTrendingData) *dto.ListTr
 			break
 		}
 		if entry.Game.ID > 0 {
+			thumbnail := ""
 			for _, img := range entry.Game.Images {
-				if img.ImgType == "header"{
-					thumbnail := img.Thumb
-					if img.Thumb == "" {
+				if img.ImgType == "cover" {
+					thumbnail = img.Thumb
+					if thumbnail == "" {
 						thumbnail = img.OgURL
-					}
-					if thumbnail != "" {
-						thumbnails = append(thumbnails, thumbnail)
 					}
 					break
 				}
+			}
+			if thumbnail == "" {
+				for _, img := range entry.Game.Images {
+					if img.ImgType == "header" {
+						thumbnail = img.Thumb
+						if thumbnail == "" {
+							thumbnail = img.OgURL
+						}
+						break
+					}
+				}
+			}
+			if thumbnail != "" {
+				thumbnails = append(thumbnails, thumbnail)
 			}
 		}
 	}
@@ -117,17 +129,29 @@ func ToTrendingListResponseFromModel(list *models.List) *dto.ListTrendingRespons
 			break
 		}
 		if entry.Game.ID > 0 {
+			thumbnail := ""
 			for _, img := range entry.Game.Images {
-				if img.ImgType == "header" {
-					thumbnail := img.Thumb
-					if img.Thumb == "" {
+				if img.ImgType == "cover" {
+					thumbnail = img.Thumb
+					if thumbnail == "" {
 						thumbnail = img.OgURL
-					}
-					if thumbnail != "" {
-						thumbnails = append(thumbnails, thumbnail)
 					}
 					break
 				}
+			}
+			if thumbnail == "" {
+				for _, img := range entry.Game.Images {
+					if img.ImgType == "header" {
+						thumbnail = img.Thumb
+						if thumbnail == "" {
+							thumbnail = img.OgURL
+						}
+						break
+					}
+				}
+			}
+			if thumbnail != "" {
+				thumbnails = append(thumbnails, thumbnail)
 			}
 		}
 	}
