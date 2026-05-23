@@ -221,7 +221,8 @@ func (s *listService) GetListDetail(ctx context.Context, userID uint, listID uin
 		return nil, dto.NewServiceError("NOT_FOUND", "không tìm thấy danh sách")
 	}
 
-	res := mapper.ToListDetailResponse(list)
+	comments, _ := s.listRepo.GetComments(listID)
+	res := mapper.ToListDetailResponse(list, len(comments))
 	if userID > 0 {
 		res.IsLiked = s.listRepo.IsListLiked(userID, list.ID)
 	}
@@ -241,7 +242,13 @@ func (s *listService) GetGameLists(ctx context.Context, userID uint, gameID uint
 		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể lấy danh sách list")
 	}
 
-	responses := mapper.ToTrendingListResponsesFromModels(lists)
+	listIDs := make([]uint, len(lists))
+	for i, l := range lists {
+		listIDs[i] = l.ID
+	}
+	commentCounts, _ := s.listRepo.GetCommentCounts(listIDs)
+
+	responses := mapper.ToTrendingListResponsesFromModels(lists, commentCounts)
 	if userID > 0 {
 		s.populateLikedStatus(userID, responses)
 	}
@@ -299,6 +306,7 @@ func (s *listService) AddListComment(ctx context.Context, userID, listID uint, r
 	comments, _ := s.listRepo.GetComments(listID)
 	for _, c := range comments {
 		if c.ID == comment.ID {
+			s.clearTrendingListsCache(ctx)
 			res := mapper.ToCommentResponse(&c, &c.User, false)
 			return res, nil
 		}

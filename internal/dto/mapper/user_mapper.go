@@ -5,7 +5,10 @@ import (
 	"vault/be/internal/models"
 )
 
-func ToUserResponse(user *models.User) *dto.UserResponse {
+func ToUserResponse(user *models.User, recentGames []dto.GameSummary) *dto.UserResponse {
+    if recentGames == nil {
+        recentGames = []dto.GameSummary{}
+    }
     return &dto.UserResponse{
         ID:                      user.ID,
         Email:                   user.Email,
@@ -21,10 +24,11 @@ func ToUserResponse(user *models.User) *dto.UserResponse {
         GameLogsCount:           user.GameLogsCount,
         AverageRating:           user.AverageRating,
         CreatedAt:               user.CreatedAt,
+        RecentGames:             recentGames,
     }
 }
 
-func ToListSummary(list *models.List) dto.ListSummary {
+func ToListSummary(list *models.List, commentCount int) dto.ListSummary {
 	thumbnail := ""
 	if len(list.Entries) > 0 && list.Entries[0].Game.Images != nil && len(list.Entries[0].Game.Images) > 0 {
 		for _, img := range list.Entries[0].Game.Images {
@@ -77,13 +81,14 @@ func ToListSummary(list *models.List) dto.ListSummary {
 	}
 
 	return dto.ListSummary{
-		ID:         list.ID,
-		Title:      list.Title,
-		GameCount:  len(list.Entries),
-		LikeCount:  list.LikeCount,
-		UpdatedAt:  list.UpdatedAt,
-		Thumbnail:  thumbnail,
-		Thumbnails: thumbnails,
+		ID:           list.ID,
+		Title:        list.Title,
+		GameCount:    len(list.Entries),
+		LikeCount:    list.LikeCount,
+		UpdatedAt:    list.UpdatedAt,
+		Thumbnail:    thumbnail,
+		Thumbnails:   thumbnails,
+		CommentCount: commentCount,
 	}
 }
 

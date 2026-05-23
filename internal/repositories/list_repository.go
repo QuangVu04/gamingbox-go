@@ -12,6 +12,7 @@ import (
 type ListTrendingData struct {
 	List             models.List
 	WeeklyLikesCount int64
+	CommentCount     int
 }
 
 type WeeklyCount struct {
@@ -32,6 +33,7 @@ type ListRepository interface {
 	Delete(id uint) error
 	GetGameLists(gameID uint, page, limit int, sort string) ([]models.List, int64, error)
 	GetComments(listID uint) ([]models.Comment, error)
+	GetCommentCounts(listIDs []uint) (map[uint]int, error)
 	AddComment(comment *models.Comment) error
 	IsListLiked(userID, listID uint) bool
 	GetLikedListIDs(userID uint, listIDs []uint) []uint
@@ -135,6 +137,24 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
         countMap[c.TargetID] = c.Count
     }
 
+    // Lấy toàn bộ comment counts để giải quyết N+1 cho comments
+    type commentCountRow struct {
+        ListID uint
+        Count  int
+    }
+    var commentCounts []commentCountRow
+    if len(listIDs) > 0 {
+        r.db.Model(&models.Comment{}).
+            Select("list_id, COUNT(*) as count").
+            Where("list_id IN ?", listIDs).
+            Group("list_id").
+            Scan(&commentCounts)
+    }
+    commentCountMap := make(map[uint]int)
+    for _, cc := range commentCounts {
+        commentCountMap[cc.ListID] = cc.Count
+    }
+
     // 4. Build dữ liệu trả về và giới hạn 5 entries mỗi list bằng code Go
     listsData := make([]ListTrendingData, 0, len(lists))
     for _, list := range lists {
@@ -149,6 +169,7 @@ func (r *listRepository) GetTrendingLists(page, limit int) ([]ListTrendingData, 
         listsData = append(listsData, ListTrendingData{
             List:             list,
             WeeklyLikesCount: countMap[list.ID],
+            CommentCount:     commentCountMap[list.ID],
         })
     }
 
@@ -286,4 +307,26 @@ func (r *listRepository) GetLikedListIDs(userID uint, listIDs []uint) []uint {
 	var likedIDs []uint
 	r.db.Model(&models.Like{}).Where("user_id = ? AND target_type = ? AND target_id IN ?", userID, "list", listIDs).Pluck("target_id", &likedIDs)
 	return likedIDs
+}
+
+func (r *listRepository) GetCommentCounts(listIDs []uint) (map[uint]int, error) {
+	counts := make(map[uint]int)
+	if len(listIDs) == 0 {
+		return counts, nil
+	}
+
+	type commentCount struct {
+		ListID uint
+		Count  int
+	}
+	var rows []commentCount
+	err := r.db.Model(&models.Comment{}).
+		Select("list_id, COUNT(*) AS count").
+		Where("list_id IN ?", listIDs).
+		Group("list_id").Scan(&rows).Error
+
+	for _, row := range rows {
+		counts[row.ListID] = row.Count
+	}
+	return counts, err
 }

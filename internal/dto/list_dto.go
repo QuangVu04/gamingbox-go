@@ -3,6 +3,7 @@ package dto
 
 // ListAuthorInfo contains author information for list response
 type ListAuthorInfo struct {
+	ID       uint    `json:"id"`
 	Username string  `json:"username"`
 	Avatar   *string `json:"avatar"`
 }
@@ -18,6 +19,7 @@ type ListTrendingResponse struct {
 	TotalLikes       int            `json:"total_likes"`
 	UserHasLiked     bool           `json:"user_has_liked"`
 	CreatedAt        string         `json:"created_at"`
+	CommentCount     int            `json:"comment_count"`
 }
 
 type ListEntryRequest struct {
@@ -62,6 +64,7 @@ type ListDetailResponse struct {
 	CreatedAt    string         `json:"created_at"`
 	IsLiked      bool           `json:"is_liked"`
 	Games        []ListEntryDTO `json:"games"`
+	CommentCount int            `json:"comment_count"`
 }
 type GameListsResponse struct {
 	Lists      []ListTrendingResponse `json:"lists"`
