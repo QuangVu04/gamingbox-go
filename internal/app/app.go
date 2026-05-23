@@ -78,6 +78,7 @@ func (a *App) Run() {
 	likeH := handlers.NewLikeHandler(likeService)
 	notifH := handlers.NewNotificationHandler(notificationService)
 	adminH := handlers.NewAdminHandler(userService, adminService)
+	uploadH := handlers.NewUploadHandler()
 
 	cronMgr, err := cron.NewCronManager(a.RDB, gameService, reviewService, listService)
 	if err != nil {
@@ -96,7 +97,7 @@ func (a *App) Run() {
 	go interactionWorker.Start(context.Background())
 
 	// 5. Setup Routes
-	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH, adminH)
+	r := routes.SetupRouter(authH, steamH, userH, gameH, reviewH, listH, likeH, notifH, adminH, uploadH)
 
 	log.Printf("Server starting on port %s", config.App.Port)
 	r.Run(":" + config.App.Port)

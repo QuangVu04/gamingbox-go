@@ -11,13 +11,16 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler, notifHandler *handlers.NotificationHandler, adminHandler *handlers.AdminHandler) *gin.Engine {
+func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.SteamHandler, userHandler *handlers.UserHandler, gameHandler *handlers.GameHandler, reviewHandler *handlers.ReviewHandler, listHandler *handlers.ListHandler, likeHandler *handlers.LikeHandler, notifHandler *handlers.NotificationHandler, adminHandler *handlers.AdminHandler, uploadHandler *handlers.UploadHandler) *gin.Engine {
 	if config.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.Default()
 	r.Use(corsMiddleware())
+
+	// Phân phối file tĩnh trong thư mục uploads
+	r.Static("/uploads", "./uploads")
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "env": config.App.Env})
@@ -48,6 +51,12 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 			protected.GET("/me", authHandler.Me)
 			protected.POST("/logout", authHandler.Logout)
 		}
+	}
+
+	upload := v1.Group("/upload")
+	upload.Use(middleware.Authenticate())
+	{
+		upload.POST("/image", uploadHandler.UploadImage)
 	}
 
 	users := v1.Group("/users")
