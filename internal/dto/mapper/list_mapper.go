@@ -89,9 +89,17 @@ func ToListDetailResponse(list *models.List) *dto.ListDetailResponse {
 	for _, entry := range list.Entries {
 		poster := ""
 		for _, img := range entry.Game.Images {
-			if img.ImgType == "header" {
+			if img.ImgType == "cover" {
 				poster = img.OgURL
 				break
+			}
+		}
+		if poster == "" {
+			for _, img := range entry.Game.Images {
+				if img.ImgType == "header" {
+					poster = img.OgURL
+					break
+				}
 			}
 		}
 		games = append(games, dto.ListEntryDTO{
