@@ -215,7 +215,7 @@ func (s *authService) GetMe(userID uint) (*dto.UserResponse, error) {
         return nil, dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
     }
 
-    return mapper.ToUserResponse(user), nil
+    return mapper.ToUserResponse(user, nil), nil
 }
 
 func (s *authService) RefreshTokens(tokenString string) (*dto.AuthResponse, error) {
@@ -370,7 +370,7 @@ func (s *authService) buildAuthResponse(user *models.User, rememberMe bool) (*dt
     }
 
     return &dto.AuthResponse{
-        User:         mapper.ToUserResponse(user),
+        User:         mapper.ToUserResponse(user, nil),
         AccessToken:  tokens.AccessToken,
         RefreshToken: tokens.RefreshToken,
         ExpiresIn:    int(config.App.JWTAccessExpires.Seconds()),

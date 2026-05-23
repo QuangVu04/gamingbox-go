@@ -21,6 +21,7 @@ type UserRepository interface {
     CountRecent(since time.Time) (int64, error)
     FindByField(field string, value interface{}) (*models.User, error)
     GetAdminUsers(page, limit int, search, role, sort string) ([]models.User, int64, error)
+    SearchUsers(search string, page, limit int, sortBy string) ([]models.User, int64, error)
     Delete(id uint) error
 }
 
@@ -301,4 +302,35 @@ func (r *userRepository) Delete(id uint) error {
 
 		return nil
 	})
+}
+
+func (r *userRepository) SearchUsers(search string, page, limit int, sortBy string) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+	offset := (page - 1) * limit
+
+	db := r.db.Model(&models.User{}).Where("status = ?", "active")
+
+	if search != "" {
+		db = db.Where("username LIKE ? OR bio LIKE ?", "%"+search+"%", "%"+search+"%")
+	}
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	orderClause := "created_at DESC"
+	if sortBy == "active" {
+		orderClause = "(game_logs_count + review_count) DESC"
+	} else if sortBy == "followers" {
+		orderClause = "follower_count DESC"
+	} else if sortBy == "newest" {
+		orderClause = "created_at DESC"
+	}
+
+	if err := db.Order(orderClause).Limit(limit).Offset(offset).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
 }

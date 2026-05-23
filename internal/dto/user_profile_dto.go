@@ -41,6 +41,7 @@ type ListSummary struct {
 	Thumbnail string    `json:"thumbnail"`
 	Thumbnails []string  `json:"thumbnails"`
 	IsLiked   bool      `json:"is_liked"`
+	CommentCount int     `json:"comment_count"`
 }
 
 type FollowRequest struct {

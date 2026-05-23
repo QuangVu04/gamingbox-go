@@ -62,6 +62,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 
 	users := v1.Group("/users")
 	{
+		users.GET("", userHandler.SearchUsers)
 		users.GET("/profile", userHandler.GetProfile)
 		users.GET("/stats", userHandler.GetStats)
 		users.GET("/diary", userHandler.GetDiary)

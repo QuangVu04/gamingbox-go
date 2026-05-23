@@ -571,3 +571,29 @@ func (h *UserHandler) VerifyEmailChangeOTP(c *gin.Context) {
 		Message: "Đổi email thành công",
 	})
 }
+
+// SearchUsers godoc
+// @Summary      Tìm kiếm người dùng
+// @Description  Tìm kiếm người dùng công khai có phân trang
+// @Tags         Users
+// @Produce      json
+// @Param        search query string false "Từ khóa tìm kiếm"
+// @Param        page query int false "Trang" default(1)
+// @Param        limit query int false "Giới hạn" default(10)
+// @Param        sort query string false "Sắp xếp: active, followers, newest"
+// @Success      200  {object}  dto.PaginatedResponse[[]dto.UserResponse]
+// @Router       /users [get]
+func (h *UserHandler) SearchUsers(c *gin.Context) {
+	search := c.Query("search")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	sort := c.DefaultQuery("sort", "active")
+
+	res, err := h.userService.SearchUsers(search, page, limit, sort)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}

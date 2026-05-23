@@ -482,9 +482,15 @@ func (s *adminService) GetUserLists(userID uint, page, limit int) (*dto.Paginate
 	if err != nil {
 		return nil, err
 	}
+	listIDs := make([]uint, len(lists))
+	for i, l := range lists {
+		listIDs[i] = l.ID
+	}
+	commentCounts, _ := s.listRepo.GetCommentCounts(listIDs)
+
 	data := make([]dto.ListSummary, 0, len(lists))
 	for _, l := range lists {
-		data = append(data, mapper.ToListSummary(&l))
+		data = append(data, mapper.ToListSummary(&l, commentCounts[l.ID]))
 	}
 	totalPages := int(total) / limit
 	if int(total)%limit != 0 { totalPages++ }
