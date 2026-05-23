@@ -24,6 +24,7 @@ type UserService interface {
 	GetUserReviews(userID uint, page, limit int, filter string) (*dto.PaginatedResponse[[]dto.ReviewSummary], error)
 	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
 	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
+	SearchUsers(search string, page, limit int, sortBy string) (*dto.PaginatedResponse[[]dto.UserResponse], error)
 }
 
 type userService struct {
@@ -569,9 +570,15 @@ func (s *userService) GetUserLists(userID uint, page, limit int) (*dto.Paginated
 	if err != nil {
 		return nil, err
 	}
+	listIDs := make([]uint, len(lists))
+	for i, l := range lists {
+		listIDs[i] = l.ID
+	}
+	commentCounts, _ := s.listRepo.GetCommentCounts(listIDs)
+
 	data := make([]dto.ListSummary, 0, len(lists))
 	for _, l := range lists {
-		summary := mapper.ToListSummary(&l)
+		summary := mapper.ToListSummary(&l, commentCounts[l.ID])
 		summary.IsLiked = s.listRepo.IsListLiked(userID, l.ID)
 		data = append(data, summary)
 	}
@@ -636,6 +643,50 @@ func (s *userService) GetUserActivities(userID uint, page, limit int, filterType
 	if int(total)%limit != 0 { totalPages++ }
 
 	return &dto.PaginatedResponse[[]dto.ActivitySummary]{
+		Status: "success",
+		Pagination: dto.PaginationDTO{
+			TotalRecords: int(total),
+			CurrentPage:  page,
+			TotalPages:   totalPages,
+			Limit:        limit,
+		},
+		Data: data,
+	}, nil
+}
+
+func (s *userService) SearchUsers(search string, page, limit int, sortBy string) (*dto.PaginatedResponse[[]dto.UserResponse], error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	users, total, err := s.userRepo.SearchUsers(search, page, limit, sortBy)
+	if err != nil {
+		return nil, dto.NewServiceError("DATABASE_ERROR", "không thể tìm kiếm người dùng: "+err.Error())
+	}
+
+	data := make([]dto.UserResponse, 0, len(users))
+	for _, u := range users {
+		recentGames := make([]dto.GameSummary, 0)
+		logs, err := s.gameLogRepo.GetByUserID(u.ID, 4)
+		if err == nil {
+			for _, log := range logs {
+				recentGames = append(recentGames, mapper.ToGameSummary(&log.Game))
+			}
+		}
+
+		userResp := mapper.ToUserResponse(&u, recentGames)
+		data = append(data, *userResp)
+	}
+
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 {
+		totalPages++
+	}
+
+	return &dto.PaginatedResponse[[]dto.UserResponse]{
 		Status: "success",
 		Pagination: dto.PaginationDTO{
 			TotalRecords: int(total),

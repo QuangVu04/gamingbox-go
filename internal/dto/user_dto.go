@@ -21,6 +21,7 @@ type UserResponse struct {
     GameLogsCount           int             `json:"game_logs_count"`
     AverageRating           float64         `json:"average_rating_count"`
     CreatedAt               time.Time       `json:"created_at"`
+    RecentGames             []GameSummary   `json:"recent_games"`
 }
 
 // UserSummary contains basic information of a user for listing

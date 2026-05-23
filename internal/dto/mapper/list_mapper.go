@@ -45,6 +45,7 @@ func ToTrendingListResponse(listData *repositories.ListTrendingData) *dto.ListTr
 		ListID: list.ID,
 		Title:  list.Title,
 		Author: dto.ListAuthorInfo{
+			ID:       list.User.ID,
 			Username: list.User.Username,
 			Avatar:   list.User.AvatarURL,
 		},
@@ -53,6 +54,7 @@ func ToTrendingListResponse(listData *repositories.ListTrendingData) *dto.ListTr
 		WeeklyLikesCount: listData.WeeklyLikesCount,
 		TotalLikes:       list.LikeCount,
 		CreatedAt:        list.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CommentCount:     listData.CommentCount,
 	}
 }
 
@@ -68,7 +70,7 @@ func ToTrendingListResponses(listsData []repositories.ListTrendingData) []dto.Li
 	return responses
 }
 
-func ToListDetailResponse(list *models.List) *dto.ListDetailResponse {
+func ToListDetailResponse(list *models.List, commentCount int) *dto.ListDetailResponse {
 	if list == nil {
 		return nil
 	}
@@ -95,6 +97,7 @@ func ToListDetailResponse(list *models.List) *dto.ListDetailResponse {
 		Title:       list.Title,
 		Description: list.Description,
 		Author: dto.ListAuthorInfo{
+			ID:       list.User.ID,
 			Username: list.User.Username,
 			Avatar:   list.User.AvatarURL,
 		},
@@ -103,9 +106,10 @@ func ToListDetailResponse(list *models.List) *dto.ListDetailResponse {
 		LikeCount:    list.LikeCount,
 		CreatedAt:    list.CreatedAt.Format("2006-01-02 15:04:05"),
 		Games:        games,
+		CommentCount: commentCount,
 	}
 }
-func ToTrendingListResponseFromModel(list *models.List) *dto.ListTrendingResponse {
+func ToTrendingListResponseFromModel(list *models.List, commentCount int) *dto.ListTrendingResponse {
 	if list == nil {
 		return nil
 	}
@@ -141,20 +145,26 @@ func ToTrendingListResponseFromModel(list *models.List) *dto.ListTrendingRespons
 		ListID: list.ID,
 		Title:  list.Title,
 		Author: dto.ListAuthorInfo{
+			ID:       list.User.ID,
 			Username: list.User.Username,
 			Avatar:   list.User.AvatarURL,
 		},
-		GameCount:  list.GameCount,
-		Thumbnails: thumbnails,
-		TotalLikes: list.LikeCount,
-		CreatedAt:  list.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		GameCount:    list.GameCount,
+		Thumbnails:   thumbnails,
+		TotalLikes:   list.LikeCount,
+		CreatedAt:    list.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CommentCount: commentCount,
 	}
 }
 
-func ToTrendingListResponsesFromModels(lists []models.List) []dto.ListTrendingResponse {
+func ToTrendingListResponsesFromModels(lists []models.List, commentCounts map[uint]int) []dto.ListTrendingResponse {
 	responses := make([]dto.ListTrendingResponse, 0, len(lists))
 	for i := range lists {
-		resp := ToTrendingListResponseFromModel(&lists[i])
+		commentCount := 0
+		if commentCounts != nil {
+			commentCount = commentCounts[lists[i].ID]
+		}
+		resp := ToTrendingListResponseFromModel(&lists[i], commentCount)
 		if resp != nil {
 			responses = append(responses, *resp)
 		}
