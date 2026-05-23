@@ -96,12 +96,26 @@ func (s *listService) GetTrendingLists(ctx context.Context, page, limit int) ([]
 }
 
 func (s *listService) CreateList(ctx context.Context, userID uint, req dto.CreateListRequest) (*dto.ListDetailResponse, error) {
-	entries := make([]models.ListEntry, 0, len(req.GameIDs))
-	for i, gameID := range req.GameIDs {
-		entries = append(entries, models.ListEntry{
-			GameID:   gameID,
-			Position: i + 1,
-		})
+	var entries []models.ListEntry
+	var gameCount int
+
+	if len(req.Entries) > 0 {
+		for i, entry := range req.Entries {
+			entries = append(entries, models.ListEntry{
+				GameID:   entry.GameID,
+				Position: i + 1,
+				GhiChu:   entry.Note,
+			})
+		}
+		gameCount = len(req.Entries)
+	} else if len(req.GameIDs) > 0 {
+		for i, gameID := range req.GameIDs {
+			entries = append(entries, models.ListEntry{
+				GameID:   gameID,
+				Position: i + 1,
+			})
+		}
+		gameCount = len(req.GameIDs)
 	}
 
 	list := &models.List{
@@ -110,7 +124,7 @@ func (s *listService) CreateList(ctx context.Context, userID uint, req dto.Creat
 		Description:  req.Description,
 		ThumbnailImg: req.ThumbnailImg,
 		IsPublic:     req.IsPublic,
-		GameCount:    len(req.GameIDs),
+		GameCount:    gameCount,
 		Entries:      entries,
 	}
 
@@ -144,7 +158,19 @@ func (s *listService) UpdateList(ctx context.Context, userID, listID uint, req d
 		list.IsPublic = *req.IsPublic
 	}
 
-	if len(req.GameIDs) > 0 {
+	if len(req.Entries) > 0 {
+		entries := make([]models.ListEntry, 0, len(req.Entries))
+		for i, entry := range req.Entries {
+			entries = append(entries, models.ListEntry{
+				ListID:   listID,
+				GameID:   entry.GameID,
+				Position: i + 1,
+				GhiChu:   entry.Note,
+			})
+		}
+		list.Entries = entries
+		list.GameCount = len(req.Entries)
+	} else if len(req.GameIDs) > 0 {
 		entries := make([]models.ListEntry, 0, len(req.GameIDs))
 		for i, gameID := range req.GameIDs {
 			entries = append(entries, models.ListEntry{

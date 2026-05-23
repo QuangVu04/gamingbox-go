@@ -20,20 +20,27 @@ type ListTrendingResponse struct {
 	CreatedAt        string         `json:"created_at"`
 }
 
+type ListEntryRequest struct {
+	GameID uint   `json:"game_id"`
+	Note   string `json:"note"`
+}
+
 type CreateListRequest struct {
-	Title        string `json:"title" binding:"required"`
-	Description  string `json:"description"`
-	ThumbnailImg string `json:"thumbnail_img"`
-	IsPublic     bool   `json:"is_public"`
-	GameIDs      []uint `json:"game_ids"`
+	Title        string             `json:"title" binding:"required"`
+	Description  string             `json:"description"`
+	ThumbnailImg string             `json:"thumbnail_img"`
+	IsPublic     bool               `json:"is_public"`
+	GameIDs      []uint             `json:"game_ids"` // deprecated, use Entries instead
+	Entries      []ListEntryRequest `json:"entries"`
 }
 
 type UpdateListRequest struct {
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	ThumbnailImg string `json:"thumbnail_img"`
-	IsPublic     *bool  `json:"is_public"`
-	GameIDs      []uint `json:"game_ids"`
+	Title        string             `json:"title"`
+	Description  string             `json:"description"`
+	ThumbnailImg string             `json:"thumbnail_img"`
+	IsPublic     *bool              `json:"is_public"`
+	GameIDs      []uint             `json:"game_ids"` // deprecated, use Entries instead
+	Entries      []ListEntryRequest `json:"entries"`
 }
 
 type ListEntryDTO struct {
