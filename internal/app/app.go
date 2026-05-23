@@ -59,7 +59,7 @@ func (a *App) Run() {
 	notificationRepo := repositories.NewNotificationRepository(a.DB)
 
 
-	authService := services.NewAuthService(userRepo, tokenRepo)
+	authService := services.NewAuthService(userRepo, tokenRepo, a.DB)
 	notificationService := services.NewNotificationService(notificationRepo)
 	userService := services.NewUserService(userRepo, reviewRepo, gameLogRepo, listRepo, activityLogRepo, ratingRepo, gameRepo, notificationService, a.DB)
 	gameService := services.NewGameService(gameRepo, ratingRepo, reviewRepo, a.DB, a.RDB)
