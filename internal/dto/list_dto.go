@@ -60,6 +60,7 @@ type ListDetailResponse struct {
 	LikeCount    int            `json:"like_count"`
 	UserHasLiked bool           `json:"user_has_liked"`
 	CreatedAt    string         `json:"created_at"`
+	IsLiked      bool           `json:"is_liked"`
 	Games        []ListEntryDTO `json:"games"`
 }
 type GameListsResponse struct {

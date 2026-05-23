@@ -214,7 +214,7 @@ func (s *reviewService) GetComments(ctx context.Context, currentUserID, reviewID
 
 func (s *reviewService) AddComment(ctx context.Context, userID, reviewID uint, req dto.CommentRequest) (*dto.CommentResponse, error) {
 	comment := &models.Comment{
-		ReviewID: reviewID,
+		ReviewID: &reviewID,
 		UserID:   userID,
 		Content:  req.Content,
 		ParentID: req.ParentID,

@@ -121,6 +121,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 	{
 		lists.GET("/trending", middleware.OptionalAuth(), listHandler.TrendingLists)
 		lists.GET("/:id", middleware.OptionalAuth(), listHandler.GetListDetail)
+		lists.GET("/:id/comments", middleware.OptionalAuth(), listHandler.GetComments)
 
 		listsProtected := lists.Group("")
 		listsProtected.Use(middleware.Authenticate())
@@ -128,6 +129,7 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 			listsProtected.POST("", listHandler.CreateList)
 			listsProtected.PUT("/:id", listHandler.UpdateList)
 			listsProtected.DELETE("/:id", listHandler.DeleteList)
+			listsProtected.POST("/:id/comments", listHandler.AddComment)
 		}
 	}
 

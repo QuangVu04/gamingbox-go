@@ -108,6 +108,11 @@ func (s *likeService) ToggleLikeDB(ctx context.Context, userID, targetID uint, t
 		s.invalidateTrendingCache(ctx)
 	}
 
+	// Invalidate trending cache if it's a list
+	if targetType == "list" && s.rdb != nil {
+		s.invalidateTrendingListsCache(ctx)
+	}
+
 	// Trigger notification if liked
 	if isLiked {
 		go s.handleLikeNotification(userID, targetID, targetType)
@@ -159,6 +164,19 @@ func (s *likeService) invalidateTrendingCache(ctx context.Context) {
 	}
 
 	pattern := "trending:games:*"
+	iter := s.rdb.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		_ = s.rdb.Del(ctx, iter.Val())
+	}
+}
+
+// invalidateTrendingListsCache xóa cache trending lists
+func (s *likeService) invalidateTrendingListsCache(ctx context.Context) {
+	if s.rdb == nil {
+		return
+	}
+
+	pattern := "trending:lists:*"
 	iter := s.rdb.Scan(ctx, 0, pattern, 100).Iterator()
 	for iter.Next(ctx) {
 		_ = s.rdb.Del(ctx, iter.Val())

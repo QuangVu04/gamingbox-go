@@ -38,8 +38,9 @@ func (h *ListHandler) TrendingLists(c *gin.Context) {
 	limit := utils.GetQueryIntWithRange(c, "limit", 10, 1, 100)
 
 	// Call service with caching
+	userID, _ := middleware.GetOptionalUserID(c)
 	ctx := context.Background()
-	lists, pagination, err := h.listService.GetTrendingLists(ctx, page, limit)
+	lists, pagination, err := h.listService.GetTrendingLists(ctx, userID, page, limit)
 	if err != nil {
 		if serviceErr, ok := err.(*dto.ServiceError); ok {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -114,8 +115,9 @@ func (h *ListHandler) GetListDetail(c *gin.Context) {
 		return
 	}
 
+	userID, _ := middleware.GetOptionalUserID(c)
 	ctx := context.Background()
-	list, err := h.listService.GetListDetail(ctx, uint(id))
+	list, err := h.listService.GetListDetail(ctx, userID, uint(id))
 	if err != nil {
 		handleListError(c, err)
 		return
@@ -220,12 +222,80 @@ func (h *ListHandler) GetGameLists(c *gin.Context) {
 	limit := utils.GetQueryIntWithRange(c, "limit", 25, 1, 100)
 	sort := c.DefaultQuery("sort", "newest")
 
+	userID, _ := middleware.GetOptionalUserID(c)
 	ctx := context.Background()
-	result, err := h.listService.GetGameLists(ctx, uint(gameID), page, limit, sort)
+	result, err := h.listService.GetGameLists(ctx, userID, uint(gameID), page, limit, sort)
 	if err != nil {
 		handleListError(c, err)
 		return
 	}
 
 	utils.Success(c, http.StatusOK, result)
+}
+
+// GetComments godoc
+// @Summary      Lấy danh sách bình luận
+// @Description  Lấy tất cả bình luận của một list
+// @Tags         Lists
+// @Produce      json
+// @Param        id path int true "ID của List"
+// @Success      200  {object}  dto.SuccessResponse[[]dto.CommentResponse]
+// @Router       /lists/{id}/comments [get]
+func (h *ListHandler) GetComments(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	comments, err := h.listService.GetListComments(ctx, uint(id))
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, comments)
+}
+
+// AddComment godoc
+// @Summary      Thêm bình luận
+// @Description  Bình luận vào một list (Cần đăng nhập)
+// @Tags         Lists
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "ID của List"
+// @Param        request body dto.CommentRequest true "Nội dung bình luận"
+// @Success      201  {object}  dto.SuccessResponse[dto.CommentResponse]
+// @Router       /lists/{id}/comments [post]
+func (h *ListHandler) AddComment(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Vui lòng đăng nhập")
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := utils.ParseUint(idStr)
+	if err != nil {
+		utils.ValidationError(c, "ID không hợp lệ")
+		return
+	}
+
+	var req dto.CommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		return
+	}
+
+	ctx := context.Background()
+	comment, err := h.listService.AddListComment(ctx, userID, uint(id), req)
+	if err != nil {
+		handleListError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusCreated, comment)
 }

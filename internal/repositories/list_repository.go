@@ -31,6 +31,10 @@ type ListRepository interface {
 	Update(list *models.List) error
 	Delete(id uint) error
 	GetGameLists(gameID uint, page, limit int, sort string) ([]models.List, int64, error)
+	GetComments(listID uint) ([]models.Comment, error)
+	AddComment(comment *models.Comment) error
+	IsListLiked(userID, listID uint) bool
+	GetLikedListIDs(userID uint, listIDs []uint) []uint
 }
 
 type listRepository struct {
@@ -257,4 +261,29 @@ func (r *listRepository) GetGameLists(gameID uint, page, limit int, sort string)
 	}
 
 	return lists, total, err
+}
+
+func (r *listRepository) GetComments(listID uint) ([]models.Comment, error) {
+	var comments []models.Comment
+	err := r.db.Preload("User").Where("list_id = ?", listID).Order("created_at asc").Find(&comments).Error
+	return comments, err
+}
+
+func (r *listRepository) AddComment(comment *models.Comment) error {
+	return r.db.Create(comment).Error
+}
+
+func (r *listRepository) IsListLiked(userID, listID uint) bool {
+	var count int64
+	r.db.Model(&models.Like{}).Where("user_id = ? AND target_id = ? AND target_type = ?", userID, listID, "list").Count(&count)
+	return count > 0
+}
+
+func (r *listRepository) GetLikedListIDs(userID uint, listIDs []uint) []uint {
+	if len(listIDs) == 0 {
+		return []uint{}
+	}
+	var likedIDs []uint
+	r.db.Model(&models.Like{}).Where("user_id = ? AND target_type = ? AND target_id IN ?", userID, "list", listIDs).Pluck("target_id", &likedIDs)
+	return likedIDs
 }

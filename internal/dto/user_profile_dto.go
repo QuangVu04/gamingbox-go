@@ -40,6 +40,7 @@ type ListSummary struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Thumbnail string    `json:"thumbnail"`
 	Thumbnails []string  `json:"thumbnails"`
+	IsLiked   bool      `json:"is_liked"`
 }
 
 type FollowRequest struct {
