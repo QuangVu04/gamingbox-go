@@ -32,6 +32,15 @@ type UpdateProfileRequest struct {
     AvatarURL *string `json:"avatar_url"`
 }
 
+type RequestEmailChangeRequest struct {
+    NewEmail string `json:"new_email" binding:"required,email"`
+}
+
+type VerifyEmailChangeRequest struct {
+    NewEmail string `json:"new_email" binding:"required,email"`
+    Code     string `json:"code" binding:"required,len=6"`
+}
+
 // UserSummary contains basic information of a user for listing
 type UserSummary struct {
 	UserID   uint    `json:"user_id"`

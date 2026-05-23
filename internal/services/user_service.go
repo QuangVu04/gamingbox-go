@@ -1,11 +1,19 @@
 package services
 
 import (
+	"context"
+	"fmt"
+	"time"
+    
+	mathRand "math/rand"
 	"sort"
 	"vault/be/internal/dto"
 	"vault/be/internal/dto/mapper"
 	"vault/be/internal/models"
 	"vault/be/internal/repositories"
+	"vault/be/database"
+	"vault/be/pkg/utils"
+
 
 	"gorm.io/gorm"
 )
@@ -25,6 +33,8 @@ type UserService interface {
 	GetUserLists(userID uint, page, limit int) (*dto.PaginatedResponse[[]dto.ListSummary], error)
 	GetUserActivities(userID uint, page, limit int, filterType, searchQuery string) (*dto.PaginatedResponse[[]dto.ActivitySummary], error)
 	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) error
+	RequestEmailChangeOTP(userID uint, req *dto.RequestEmailChangeRequest) error
+	VerifyEmailChangeOTP(userID uint, req *dto.VerifyEmailChangeRequest) error
 }
 
 type userService struct {
@@ -682,3 +692,88 @@ func (s *userService) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) 
 	return s.userRepo.Update(user)
 }
 
+func (s *userService) RequestEmailChangeOTP(userID uint, req *dto.RequestEmailChangeRequest) error {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "Tài khoản không tồn tại")
+	}
+
+	if req.NewEmail == user.Email {
+		return dto.NewServiceError("INVALID_ACTION", "Email mới phải khác email hiện tại")
+	}
+
+	existingUser, _ := s.userRepo.FindByEmail(req.NewEmail)
+	if existingUser != nil && existingUser.ID != userID {
+		return dto.NewServiceError("EMAIL_EXISTS", "Email này đã có người sử dụng")
+	}
+
+	// Generate 6-digit code
+	code := fmt.Sprintf("%06d", mathRand.Intn(1000000))
+	
+	// Store in Redis with 5 mins expiration
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("update_email_otp:%d", userID)
+	err = database.RDB.Set(ctx, cacheKey, req.NewEmail+":"+code, 5*time.Minute).Err()
+	if err != nil {
+		return dto.NewServiceError("SERVER_ERROR", "Không thể tạo mã xác nhận")
+	}
+
+	fmt.Printf("====[TESTING] Mã xác nhận đổi email cho %s là: %s ====\n", req.NewEmail, code)
+
+	// Send email
+	go func() {
+		body := utils.GenerateOTPEmailTemplate(
+			"Xác nhận đổi Email",
+			"Bạn vừa yêu cầu thay đổi địa chỉ email cho tài khoản GamingBox của mình. Vui lòng nhập mã xác nhận gồm 6 chữ số bên dưới để hoàn tất:",
+			code,
+		)
+		err := utils.SendEmail(req.NewEmail, "Mã xác nhận đổi email - GamingBox", body)
+		if err != nil {
+			fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", req.NewEmail, err)
+		} else {
+			fmt.Printf("====[THÀNH CÔNG] Đã gửi email tới %s ====\n", req.NewEmail)
+		}
+	}()
+
+	return nil
+}
+
+func (s *userService) VerifyEmailChangeOTP(userID uint, req *dto.VerifyEmailChangeRequest) error {
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("update_email_otp:%d", userID)
+
+	// Verify code from Redis
+	storedData, err := database.RDB.Get(ctx, cacheKey).Result()
+	if err != nil {
+		return dto.NewFieldError("INVALID_CODE", "Mã xác nhận không đúng hoặc đã hết hạn", "code")
+	}
+
+	// Data is stored as new_email:code
+	expectedData := req.NewEmail + ":" + req.Code
+	if storedData != expectedData {
+		return dto.NewFieldError("INVALID_CODE", "Mã xác nhận không đúng", "code")
+	}
+
+	// Get user
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return dto.NewServiceError("USER_NOT_FOUND", "Tài khoản không tồn tại")
+	}
+
+	// Double check email uniqueness just in case
+	existingUser, _ := s.userRepo.FindByEmail(req.NewEmail)
+	if existingUser != nil && existingUser.ID != userID {
+		return dto.NewServiceError("EMAIL_EXISTS", "Email này đã có người sử dụng")
+	}
+
+	// Update email
+	user.Email = req.NewEmail
+	if err := s.userRepo.Update(user); err != nil {
+		return dto.NewServiceError("SERVER_ERROR", "Không thể cập nhật email")
+	}
+
+	// Delete the OTP code
+	database.RDB.Del(ctx, cacheKey)
+
+	return nil
+}

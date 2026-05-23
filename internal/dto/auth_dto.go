@@ -1,9 +1,16 @@
 package dto
 
 type RegisterInput struct {
-    Email    string
-    Username string
-    Password string
+    Email    string `json:"email"`
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+
+type VerifyRegisterOTPInput struct {
+    Email    string `json:"email" binding:"required,email"`
+    Username string `json:"username" binding:"required"`
+    Password string `json:"password" binding:"required"`
+    Code     string `json:"code" binding:"required,len=6"`
 }
 
 type LoginInput struct {

@@ -484,7 +484,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	var req dto.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.ValidationError(c, "Dữ liệu không hợp lệ")
+		utils.FormatValidationError(c, err)
 		return
 	}
 
@@ -499,4 +499,75 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		Message: "Cập nhật hồ sơ thành công",
 	})
 }
-
+
+// RequestEmailChangeOTP godoc
+// @Summary      Yêu cầu đổi email
+// @Description  Gửi mã OTP đến email mới
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Param        request  body      dto.RequestEmailChangeRequest  true  "Email mới"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /users/me/email/request-otp [post]
+func (h *UserHandler) RequestEmailChangeOTP(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req dto.RequestEmailChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.FormatValidationError(c, err)
+		return
+	}
+
+	err := h.userService.RequestEmailChangeOTP(userID, &req)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, dto.MessageResponse{
+		Status:  "success",
+		Message: "Mã xác nhận đã được gửi tới email mới",
+	})
+}
+
+// VerifyEmailChangeOTP godoc
+// @Summary      Xác nhận đổi email
+// @Description  Xác nhận mã OTP để đổi email
+// @Tags         Users
+// @Security     BearerAuth
+// @Produce      json
+// @Param        request  body      dto.VerifyEmailChangeRequest  true  "Mã xác nhận"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      401  {object}  dto.ErrorResponse
+// @Router       /users/me/email/verify [put]
+func (h *UserHandler) VerifyEmailChangeOTP(c *gin.Context) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		utils.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req dto.VerifyEmailChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.FormatValidationError(c, err)
+		return
+	}
+
+	err := h.userService.VerifyEmailChangeOTP(userID, &req)
+	if err != nil {
+		handleUserServiceError(c, err)
+		return
+	}
+
+	utils.Success(c, http.StatusOK, dto.MessageResponse{
+		Status:  "success",
+		Message: "Đổi email thành công",
+	})
+}

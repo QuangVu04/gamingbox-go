@@ -16,8 +16,8 @@ type List struct {
 	LikeCount    int  `gorm:"default:0"`
 	GameCount    int  `gorm:"default:0"`
 
-	User    User        `gorm:"foreignKey:UserID;references:ID"`
-	Entries []ListEntry `gorm:"foreignKey:ListID"`
+	User    User        `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE;"`
+	Entries []ListEntry `gorm:"foreignKey:ListID;constraint:OnDelete:CASCADE;"`
 }
 
 type ListEntry struct {
@@ -26,7 +26,7 @@ type ListEntry struct {
 	GhiChu   string `gorm:"column:ghichu"`
 	Position int
 
-	Game Game `gorm:"foreignKey:GameID"`
+	Game Game `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE;"`
 }
 
 type GameLog struct {
@@ -35,7 +35,7 @@ type GameLog struct {
 	LoggedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP"`
 	Status   string    `gorm:"type:enum('playing', 'completed', 'dropped', 'backlog')"`
 
-	Game Game `gorm:"foreignKey:GameID"`
+	Game Game `gorm:"foreignKey:GameID;constraint:OnDelete:CASCADE;"`
 }
 
 type Notification struct {
@@ -58,5 +58,5 @@ type ActivityLog struct {
 	Preview    string
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 
-	User       User   `gorm:"foreignKey:UserID"`
+	User       User   `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE;"`
 }

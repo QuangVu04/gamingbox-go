@@ -38,7 +38,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		auth.GET("/google/callback", authHandler.GoogleCallback)
 		auth.GET("/facebook", authHandler.FacebookLogin)
 		auth.GET("/facebook/callback", authHandler.FacebookCallback)
-		auth.POST("/register", authHandler.Register)
+		auth.POST("/register/request-otp", authHandler.RequestRegisterOTP)
+		auth.POST("/register/verify", authHandler.VerifyRegisterOTP)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/refresh", authHandler.RefreshToken)
 		auth.POST("/forgot-password", authHandler.ForgotPassword)
@@ -76,6 +77,8 @@ func SetupRouter(authHandler *handlers.AuthHandler, steamHandler *handlers.Steam
 		{
 			usersProtected.GET("/me", userHandler.Me)
 			usersProtected.PUT("/me", userHandler.UpdateProfile)
+			usersProtected.POST("/me/email/request-otp", userHandler.RequestEmailChangeOTP)
+			usersProtected.PUT("/me/email/verify", userHandler.VerifyEmailChangeOTP)
 			usersProtected.POST("/follow", userHandler.FollowUser)
 			usersProtected.PUT("/favorite-games", userHandler.UpdateFavoriteGames)
 		}

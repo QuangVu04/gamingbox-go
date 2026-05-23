@@ -26,7 +26,8 @@ import (
 )
 
 type AuthService interface {
-    Register(input dto.RegisterInput) (*dto.AuthResponse, error)
+    RequestRegisterOTP(input dto.RegisterInput) error
+    VerifyRegisterOTP(input dto.VerifyRegisterOTPInput) (*dto.AuthResponse, error)
     Login(input dto.LoginInput) (*dto.AuthResponse, error)
     GetMe(userID uint) (*dto.UserResponse, error)
     RefreshTokens(tokenString string) (*dto.AuthResponse, error)
@@ -57,9 +58,9 @@ func NewAuthService(
     }
 }
 
-func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, error) {
+func (s *authService) RequestRegisterOTP(input dto.RegisterInput) error {
     if !utils.IsValidUsername(input.Username) {
-        return nil, dto.NewFieldError(
+        return dto.NewFieldError(
             "USERNAME_INVALID",
             "username chỉ được chứa chữ cái, số và dấu gạch dưới",
             "username",
@@ -67,9 +68,56 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
     }
 
     if _, err := s.userRepo.FindByEmail(input.Email); err == nil {
-        return nil, dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
+        return dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
     }
 
+    if _, err := s.userRepo.FindByUsername(input.Username); err == nil {
+        return dto.NewFieldError("USERNAME_EXISTS", "username này đã được sử dụng", "username")
+    }
+
+    // Generate 6-digit code
+    code := fmt.Sprintf("%06d", mathRand.Intn(1000000))
+    
+    // Store in Redis with 5 mins expiration
+    ctx := context.Background()
+    err := database.RDB.Set(ctx, "register_otp:"+input.Email, code, 5*time.Minute).Err()
+    if err != nil {
+        return dto.NewServiceError("SERVER_ERROR", "Không thể tạo mã xác nhận")
+    }
+
+    fmt.Printf("====[TESTING] Mã xác nhận đăng ký cho %s là: %s ====\n", input.Email, code)
+
+    // Send email
+    go func() {
+        body := utils.GenerateOTPEmailTemplate(
+            "Mã xác nhận đăng ký",
+            "Cảm ơn bạn đã đăng ký tài khoản tại GamingBox. Vui lòng nhập mã xác nhận gồm 6 chữ số bên dưới để hoàn tất quá trình đăng ký:",
+            code,
+        )
+        err := utils.SendEmail(input.Email, "Mã xác nhận đăng ký - GamingBox", body)
+        if err != nil {
+            fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", input.Email, err)
+        } else {
+            fmt.Printf("====[THÀNH CÔNG] Đã gửi email tới %s ====\n", input.Email)
+        }
+    }()
+
+    return nil
+}
+
+func (s *authService) VerifyRegisterOTP(input dto.VerifyRegisterOTPInput) (*dto.AuthResponse, error) {
+    ctx := context.Background()
+
+    // Verify code from Redis
+    storedCode, err := database.RDB.Get(ctx, "register_otp:"+input.Email).Result()
+    if err != nil || storedCode != input.Code {
+        return nil, dto.NewFieldError("INVALID_CODE", "Mã xác nhận không đúng hoặc đã hết hạn", "code")
+    }
+
+    // Double check email/username uniqueness just in case
+    if _, err := s.userRepo.FindByEmail(input.Email); err == nil {
+        return nil, dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
+    }
     if _, err := s.userRepo.FindByUsername(input.Username); err == nil {
         return nil, dto.NewFieldError("USERNAME_EXISTS", "username này đã được sử dụng", "username")
     }
@@ -81,7 +129,7 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
 
     user := &models.User{
         Email:        input.Email,
-        Password: 	  &hashedPassword,
+        Password:     &hashedPassword,
         Username:     input.Username,
         Role:         models.RoleUser,
     }
@@ -89,6 +137,9 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
     if err := s.userRepo.Create(user); err != nil {
         return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo tài khoản")
     }
+
+    // Delete the OTP code
+    database.RDB.Del(ctx, "register_otp:"+input.Email)
 
     return s.buildAuthResponse(user, true)
 }
@@ -104,6 +155,10 @@ func (s *authService) Login(input dto.LoginInput) (*dto.AuthResponse, error) {
 
     if user.Password == nil || !utils.CheckPassword(input.Password, *user.Password) {
         return nil, dto.NewServiceError("INVALID_CREDENTIALS", "email hoặc mật khẩu không đúng")
+    }
+
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
     }
 
     return s.buildAuthResponse(user, input.RememberMe)
@@ -137,6 +192,10 @@ func (s *authService) LoginWithSteam(steamID64 string) (*dto.AuthResponse, error
         } else {
             return nil, err
         }
+    }
+
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
     }
 
     res, err := s.buildAuthResponse(user, true)
@@ -176,6 +235,10 @@ func (s *authService) RefreshTokens(tokenString string) (*dto.AuthResponse, erro
         return nil, dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
     }
 
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
+    }
+
     _ = s.tokenRepo.Revoke(tokenString)
 
     return s.buildAuthResponse(user, true)
@@ -209,8 +272,12 @@ func (s *authService) ForgotPassword(email string) error {
 
     // Send email
     go func() {
-        body := fmt.Sprintf("Xin chào,\n\nMã xác nhận để đặt lại mật khẩu của bạn là: %s\nMã này sẽ hết hạn trong vòng 15 phút.\n\nTrân trọng,\nĐội ngũ GamingBox", code)
-        err := utils.SendEmail(email, "Mã xác nhận đặt lại mật khẩu", body)
+        body := utils.GenerateOTPEmailTemplate(
+            "Đặt lại mật khẩu",
+            "Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản GamingBox của bạn. Vui lòng nhập mã xác nhận gồm 6 chữ số bên dưới để tiếp tục:",
+            code,
+        )
+        err := utils.SendEmail(email, "Mã xác nhận đặt lại mật khẩu - GamingBox", body)
         if err != nil {
             fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", email, err)
         } else {

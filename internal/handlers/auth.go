@@ -50,17 +50,51 @@ type logoutRequest struct {
 // @Success      201      {object}  dto.AuthResponse
 // @Failure      400      {object}  dto.ErrorResponse
 // @Router       /auth/register [post]
-func (h *AuthHandler) Register(c *gin.Context) {
+type verifyRegisterRequest struct {
+	Email    string `json:"email"    binding:"required,email"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	Password string `json:"password" binding:"required,min=8"`
+	Code     string `json:"code"     binding:"required,len=6"`
+}
+
+// RequestRegisterOTP godoc
+func (h *AuthHandler) RequestRegisterOTP(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.FormatValidationError(c, err)
 		return
 	}
 
-	result, err := h.authService.Register(dto.RegisterInput{
+	err := h.authService.RequestRegisterOTP(dto.RegisterInput{
 		Email:    req.Email,
 		Username: req.Username,
 		Password: req.Password,
+	})
+
+	if err != nil {
+		handleAuthServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{
+		Status:  "success",
+		Message: "Mã xác nhận đã được gửi tới email của bạn",
+	})
+}
+
+// VerifyRegisterOTP godoc
+func (h *AuthHandler) VerifyRegisterOTP(c *gin.Context) {
+	var req verifyRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.FormatValidationError(c, err)
+		return
+	}
+
+	result, err := h.authService.VerifyRegisterOTP(dto.VerifyRegisterOTPInput{
+		Email:    req.Email,
+		Username: req.Username,
+		Password: req.Password,
+		Code:     req.Code,
 	})
 
 	if err != nil {
