@@ -44,6 +44,13 @@ func (a *App) Seed() {
 	seeders.SeedRandomData(a.DB)
 	seeders.SeedGameboxData(a.DB)
 	seeders.SeedCoverImages(a.DB)
+
+	// Xóa tất cả các lists trống (không có game nào) trong cơ sở dữ liệu
+	if err := a.DB.Exec("DELETE FROM lists WHERE game_count = 0 OR game_count IS NULL").Error; err != nil {
+		log.Printf("Lỗi khi xóa các seed list trống: %v", err)
+	} else {
+		log.Println("Đã xóa sạch các seed lists trống khỏi database thành công!")
+	}
 }
 
 func (a *App) Run() {
