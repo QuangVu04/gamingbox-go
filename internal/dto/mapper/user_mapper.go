@@ -15,6 +15,7 @@ func ToUserResponse(user *models.User, recentGames []dto.GameSummary) *dto.UserR
         Username:                user.Username,
         AvatarURL:               user.AvatarURL,
         Bio:                     user.Bio,
+        Location:                user.Location,
         Role:                    user.Role,
         SteamID:                 user.SteamID,
         FollowerCount:           user.FollowerCount,

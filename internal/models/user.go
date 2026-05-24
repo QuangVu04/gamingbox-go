@@ -18,6 +18,7 @@ type User struct {
     Username     string   `gorm:"type:varchar(50);uniqueIndex;not null"  json:"username"`
     AvatarURL    *string  `gorm:"type:text"                              json:"avatar_url"`
     Bio          *string  `gorm:"type:text"                              json:"bio"`
+    Location     *string  `gorm:"type:varchar(255)"                      json:"location"`
     Role         UserRole `gorm:"type:enum('user','influencer','admin');default:'user'" json:"role"`
     SteamID      string   `gorm:"default:null;index"                     json:"steam_id"`
     GoogleID     string   `gorm:"default:null;index"                     json:"google_id"`

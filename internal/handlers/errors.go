@@ -52,6 +52,8 @@ func handleUserServiceError(c *gin.Context, err error) {
 		utils.NotFound(c, svcErr.Message)
 	case "INVALID_ACTION":
 		utils.ValidationError(c, svcErr.Message)
+	case "USERNAME_EXISTS", "EMAIL_EXISTS":
+		utils.Conflict(c, svcErr.Code, svcErr.Message, svcErr.Field)
 	case "SERVER_ERROR":
 		utils.InternalError(c)
 	default:

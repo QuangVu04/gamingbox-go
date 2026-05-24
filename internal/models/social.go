@@ -17,8 +17,8 @@ type Review struct {
 	IsSpoiler  bool   `gorm:"default:false"`
 	Rating     float64 `gorm:"-" json:"rating"`
 
-	Game Game `gorm:"foreignKey:TargetID;references:ID"`
-	User User `gorm:"foreignKey:UserID;references:ID"`
+	Game Game `gorm:"foreignKey:TargetID;references:ID;constraint:OnDelete:CASCADE;"`
+	User User `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE;"`
 }
 
 type Rating struct {
@@ -27,6 +27,9 @@ type Rating struct {
 	GameID    uint      `gorm:"uniqueIndex:idx_user_game"`
 	Rating    float64   `gorm:"type:float"`
 	CreatedAt time.Time
+
+	User User `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE;"`
+	Game Game `gorm:"foreignKey:GameID;references:ID;constraint:OnDelete:CASCADE;"`
 }
 
 type Comment struct {
@@ -38,7 +41,9 @@ type Comment struct {
 	ParentID  *uint  `gorm:"index"` // Nullable cho comment cấp 1
 	LikeCount int    `gorm:"default:0"`
 
-	User User `gorm:"foreignKey:UserID;references:ID"`
+	User User `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE;"`
+	Review *Review `gorm:"foreignKey:ReviewID;references:ID;constraint:OnDelete:CASCADE;"`
+	// List *List `gorm:"foreignKey:ListID;references:ID;constraint:OnDelete:CASCADE;"`
 }
 
 type Like struct {

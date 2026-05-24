@@ -290,7 +290,12 @@ func (r *userRepository) Delete(id uint) error {
 			return err
 		}
 
-		// 13. Delete the user record
+		// 13. Delete refresh tokens of this user
+		if err := tx.Unscoped().Where("user_id = ?", id).Delete(&models.RefreshToken{}).Error; err != nil {
+			return err
+		}
+
+		// 14. Delete the user record
 		if err := tx.Unscoped().Delete(&models.User{}, id).Error; err != nil {
 			return err
 		}

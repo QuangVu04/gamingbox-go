@@ -19,6 +19,7 @@ type ListTrendingResponse struct {
 	TotalLikes       int            `json:"total_likes"`
 	UserHasLiked     bool           `json:"user_has_liked"`
 	CreatedAt        string         `json:"created_at"`
+	IsLiked          bool           `json:"is_liked"`
 	CommentCount     int            `json:"comment_count"`
 }
 

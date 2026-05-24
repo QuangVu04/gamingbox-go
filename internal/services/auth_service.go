@@ -20,12 +20,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"gorm.io/gorm"
 )
 
 type AuthService interface {
-    Register(input dto.RegisterInput) (*dto.AuthResponse, error)
+    RequestRegisterOTP(input dto.RegisterInput) error
+    VerifyRegisterOTP(input dto.VerifyRegisterOTPInput) (*dto.AuthResponse, error)
     Login(input dto.LoginInput) (*dto.AuthResponse, error)
     GetMe(userID uint) (*dto.UserResponse, error)
     RefreshTokens(tokenString string) (*dto.AuthResponse, error)
@@ -41,21 +43,24 @@ type AuthService interface {
 type authService struct {
     userRepo    repositories.UserRepository
     tokenRepo   repositories.RefreshTokenRepository
+    db          *gorm.DB
 }
 
 func NewAuthService(
     userRepo repositories.UserRepository,
     tokenRepo repositories.RefreshTokenRepository,
+    db *gorm.DB,
 ) AuthService {
     return &authService{
         userRepo:  userRepo,
         tokenRepo: tokenRepo,
+        db:        db,
     }
 }
 
-func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, error) {
+func (s *authService) RequestRegisterOTP(input dto.RegisterInput) error {
     if !utils.IsValidUsername(input.Username) {
-        return nil, dto.NewFieldError(
+        return dto.NewFieldError(
             "USERNAME_INVALID",
             "username chỉ được chứa chữ cái, số và dấu gạch dưới",
             "username",
@@ -63,9 +68,56 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
     }
 
     if _, err := s.userRepo.FindByEmail(input.Email); err == nil {
-        return nil, dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
+        return dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
     }
 
+    if _, err := s.userRepo.FindByUsername(input.Username); err == nil {
+        return dto.NewFieldError("USERNAME_EXISTS", "username này đã được sử dụng", "username")
+    }
+
+    // Generate 6-digit code
+    code := fmt.Sprintf("%06d", mathRand.Intn(1000000))
+    
+    // Store in Redis with 5 mins expiration
+    ctx := context.Background()
+    err := database.RDB.Set(ctx, "register_otp:"+input.Email, code, 5*time.Minute).Err()
+    if err != nil {
+        return dto.NewServiceError("SERVER_ERROR", "Không thể tạo mã xác nhận")
+    }
+
+    fmt.Printf("====[TESTING] Mã xác nhận đăng ký cho %s là: %s ====\n", input.Email, code)
+
+    // Send email
+    go func() {
+        body := utils.GenerateOTPEmailTemplate(
+            "Mã xác nhận đăng ký",
+            "Cảm ơn bạn đã đăng ký tài khoản tại GamingBox. Vui lòng nhập mã xác nhận gồm 6 chữ số bên dưới để hoàn tất quá trình đăng ký:",
+            code,
+        )
+        err := utils.SendEmail(input.Email, "Mã xác nhận đăng ký - GamingBox", body)
+        if err != nil {
+            fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", input.Email, err)
+        } else {
+            fmt.Printf("====[THÀNH CÔNG] Đã gửi email tới %s ====\n", input.Email)
+        }
+    }()
+
+    return nil
+}
+
+func (s *authService) VerifyRegisterOTP(input dto.VerifyRegisterOTPInput) (*dto.AuthResponse, error) {
+    ctx := context.Background()
+
+    // Verify code from Redis
+    storedCode, err := database.RDB.Get(ctx, "register_otp:"+input.Email).Result()
+    if err != nil || storedCode != input.Code {
+        return nil, dto.NewFieldError("INVALID_CODE", "Mã xác nhận không đúng hoặc đã hết hạn", "code")
+    }
+
+    // Double check email/username uniqueness just in case
+    if _, err := s.userRepo.FindByEmail(input.Email); err == nil {
+        return nil, dto.NewFieldError("EMAIL_EXISTS", "email này đã được sử dụng", "email")
+    }
     if _, err := s.userRepo.FindByUsername(input.Username); err == nil {
         return nil, dto.NewFieldError("USERNAME_EXISTS", "username này đã được sử dụng", "username")
     }
@@ -77,7 +129,7 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
 
     user := &models.User{
         Email:        input.Email,
-        Password: 	  &hashedPassword,
+        Password:     &hashedPassword,
         Username:     input.Username,
         Role:         models.RoleUser,
     }
@@ -85,6 +137,9 @@ func (s *authService) Register(input dto.RegisterInput) (*dto.AuthResponse, erro
     if err := s.userRepo.Create(user); err != nil {
         return nil, dto.NewServiceError("SERVER_ERROR", "không thể tạo tài khoản")
     }
+
+    // Delete the OTP code
+    database.RDB.Del(ctx, "register_otp:"+input.Email)
 
     return s.buildAuthResponse(user, true)
 }
@@ -100,6 +155,10 @@ func (s *authService) Login(input dto.LoginInput) (*dto.AuthResponse, error) {
 
     if user.Password == nil || !utils.CheckPassword(input.Password, *user.Password) {
         return nil, dto.NewServiceError("INVALID_CREDENTIALS", "email hoặc mật khẩu không đúng")
+    }
+
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
     }
 
     return s.buildAuthResponse(user, input.RememberMe)
@@ -135,10 +194,18 @@ func (s *authService) LoginWithSteam(steamID64 string) (*dto.AuthResponse, error
         }
     }
 
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
+    }
+
     res, err := s.buildAuthResponse(user, true)
     if err != nil {
         return nil, err
     }
+
+    // Background sync Steam data
+    go s.SyncSteamLibraryAndWishlist(steamID64, user.ID)
+
     return res, nil
 }
 
@@ -166,6 +233,10 @@ func (s *authService) RefreshTokens(tokenString string) (*dto.AuthResponse, erro
     user, err := s.userRepo.FindByID(storedToken.UserID)
     if err != nil {
         return nil, dto.NewServiceError("USER_NOT_FOUND", "tài khoản không tồn tại")
+    }
+
+    if user.Status == "banned" {
+        return nil, dto.NewServiceError("ACCOUNT_BANNED", "Tài khoản của bạn đã bị khóa")
     }
 
     _ = s.tokenRepo.Revoke(tokenString)
@@ -201,8 +272,12 @@ func (s *authService) ForgotPassword(email string) error {
 
     // Send email
     go func() {
-        body := fmt.Sprintf("Xin chào,\n\nMã xác nhận để đặt lại mật khẩu của bạn là: %s\nMã này sẽ hết hạn trong vòng 15 phút.\n\nTrân trọng,\nĐội ngũ GamingBox", code)
-        err := utils.SendEmail(email, "Mã xác nhận đặt lại mật khẩu", body)
+        body := utils.GenerateOTPEmailTemplate(
+            "Đặt lại mật khẩu",
+            "Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản GamingBox của bạn. Vui lòng nhập mã xác nhận gồm 6 chữ số bên dưới để tiếp tục:",
+            code,
+        )
+        err := utils.SendEmail(email, "Mã xác nhận đặt lại mật khẩu - GamingBox", body)
         if err != nil {
             fmt.Printf("====[LỖI GỬI EMAIL] Không thể gửi email tới %s: %v ====\n", email, err)
         } else {
@@ -321,6 +396,257 @@ func GetSteamProfile(steamID64 string) (*response.SteamPlayerResponse, error) {
 	}
 
 	return &result, nil
+}
+
+type SteamOwnedGamesResponse struct {
+	Response struct {
+		GameCount int `json:"game_count"`
+		Games     []struct {
+			AppID int `json:"appid"`
+		} `json:"games"`
+	} `json:"response"`
+}
+
+type AuthSteamAppDetails struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Name             string `json:"name"`
+		ShortDescription string `json:"short_description"`
+		IsFree           bool   `json:"is_free"`
+		PriceOverview    struct {
+			Initial int `json:"initial"` // Tính bằng cent
+		} `json:"price_overview"`
+		ReleaseDate struct {
+			Date string `json:"date"`
+		} `json:"release_date"`
+		HeaderImage string `json:"header_image"`
+		Developers  []string `json:"developers"`
+		Genres      []struct {
+			Description string `json:"description"`
+		} `json:"genres"`
+		Platforms struct {
+			Windows bool `json:"windows"`
+			Mac     bool `json:"mac"`
+			Linux   bool `json:"linux"`
+		} `json:"platforms"`
+		Screenshots []struct {
+			PathThumbnail string `json:"path_thumbnail"`
+			PathFull      string `json:"path_full"`
+		} `json:"screenshots"`
+	} `json:"data"`
+}
+
+func (s *authService) fetchAndCreateMissingGames(missingAppIDs []int) map[int]uint {
+	newGamesMap := make(map[int]uint)
+	for _, appID := range missingAppIDs {
+		fmt.Printf("[SteamSync] Đang cào dữ liệu game bị thiếu từ Steam: AppID %d\n", appID)
+		url := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%d&l=vietnamese", appID)
+		resp, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("[SteamSync] Lỗi HTTP khi fetch appID %d: %v\n", appID, err)
+			continue
+		}
+
+		var result map[string]AuthSteamAppDetails
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			resp.Body.Close()
+			continue
+		}
+		resp.Body.Close()
+
+		appIDStr := strconv.Itoa(appID)
+		appData, ok := result[appIDStr]
+		if !ok || !appData.Success {
+			continue
+		}
+
+		data := appData.Data
+		studioName := "Unknown Studio"
+		if len(data.Developers) > 0 && data.Developers[0] != "" {
+			studioName = data.Developers[0]
+		}
+		var studio models.Studio
+		s.db.FirstOrCreate(&studio, models.Studio{Name: studioName})
+
+		parsedDate, err := time.Parse("2 Jan, 2006", data.ReleaseDate.Date)
+		if err != nil {
+			parsedDate = time.Now()
+		}
+
+		game := models.Game{
+			SteamID:     appID,
+			Title:       data.Name,
+			Description: data.ShortDescription,
+			IsFree:      data.IsFree,
+			Price:       float64(data.PriceOverview.Initial) / 100.0,
+			ReleaseDate: parsedDate,
+			StudioID:    studio.ID,
+		}
+		if err := s.db.Create(&game).Error; err != nil {
+			fmt.Printf("[SteamSync] Lỗi Create Game AppID %d: %v\n", appID, err)
+			continue
+		}
+		fmt.Printf("[SteamSync] Đã lưu game thành công AppID %d, GameID %d\n", appID, game.ID)
+
+		for _, g := range data.Genres {
+			if g.Description == "" {
+				continue
+			}
+			var genre models.Genre
+			s.db.FirstOrCreate(&genre, models.Genre{Name: g.Description})
+			s.db.Model(&game).Association("Genres").Append(&genre)
+		}
+
+		if data.Platforms.Windows {
+			var p models.Platform
+			s.db.FirstOrCreate(&p, models.Platform{Name: "Windows"})
+			s.db.Model(&game).Association("Platforms").Append(&p)
+		}
+		if data.Platforms.Mac {
+			var p models.Platform
+			s.db.FirstOrCreate(&p, models.Platform{Name: "Mac"})
+			s.db.Model(&game).Association("Platforms").Append(&p)
+		}
+		if data.Platforms.Linux {
+			var p models.Platform
+			s.db.FirstOrCreate(&p, models.Platform{Name: "Linux"})
+			s.db.Model(&game).Association("Platforms").Append(&p)
+		}
+
+		coverUrl := fmt.Sprintf("https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/%d/library_600x900_2x.jpg", appID)
+		coverImg := models.GameImg{
+			OgURL:   coverUrl,
+			Thumb:   coverUrl,
+			ImgType: "cover",
+			GameID:  game.ID,
+		}
+		s.db.Create(&coverImg)
+
+		headerImg := models.GameImg{
+			OgURL:   data.HeaderImage,
+			Thumb:   data.HeaderImage,
+			ImgType: "header",
+			GameID:  game.ID,
+		}
+		s.db.Create(&headerImg)
+
+		for _, ss := range data.Screenshots {
+			screenshot := models.GameImg{
+				OgURL:   ss.PathFull,
+				Thumb:   ss.PathThumbnail,
+				ImgType: "screenshot",
+				GameID:  game.ID,
+			}
+			s.db.Create(&screenshot)
+		}
+
+		newGamesMap[appID] = game.ID
+
+		// Tạm ngưng 1 giây để tránh Rate Limit
+		time.Sleep(1 * time.Second)
+	}
+
+	return newGamesMap
+}
+
+func (s *authService) SyncSteamLibraryAndWishlist(steamID64 string, userID uint) {
+	fmt.Printf("[SteamSync] Bắt đầu đồng bộ cho user %d (SteamID: %s)\n", userID, steamID64)
+
+	// 1. Lấy Owned Games (Bao gồm cả các game Free-to-play hoặc Share mà user đã từng chơi)
+	ownedUrl := fmt.Sprintf("http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=%s&steamid=%s&include_played_free_games=1&format=json", config.App.SteamApiKey, steamID64)
+	resp, err := http.Get(ownedUrl)
+	var ownedGames SteamOwnedGamesResponse
+	if err == nil {
+		defer resp.Body.Close()
+		json.NewDecoder(resp.Body).Decode(&ownedGames)
+	}
+
+	ownedAppIDs := []int{}
+	for _, g := range ownedGames.Response.Games {
+		ownedAppIDs = append(ownedAppIDs, g.AppID)
+	}
+
+	// 2. Lấy Wishlist
+	wishlistUrl := fmt.Sprintf("https://store.steampowered.com/wishlist/profiles/%s/wishlistdata/", steamID64)
+	wishlistResp, err := http.Get(wishlistUrl)
+	wishlistAppIDs := []int{}
+	if err == nil {
+		defer wishlistResp.Body.Close()
+		var wishlistData map[string]interface{}
+		if err := json.NewDecoder(wishlistResp.Body).Decode(&wishlistData); err == nil {
+			for appIDStr := range wishlistData {
+				// Steam might return success: 2 for private wishlist, which is not a map of appIds
+				if appIDStr != "success" {
+					var appID int
+					if _, err := fmt.Sscanf(appIDStr, "%d", &appID); err == nil {
+						wishlistAppIDs = append(wishlistAppIDs, appID)
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Lọc ra các game có trong Database
+	allAppIDs := append(ownedAppIDs, wishlistAppIDs...)
+	if len(allAppIDs) == 0 {
+		return
+	}
+
+	// Vì list có thể dài, chia batch nếu cần, nhưng SQLite/MySQL xử lý IN dễ dàng
+	var dbGames []models.Game
+	if err := s.db.Where("steam_id IN ?", allAppIDs).Find(&dbGames).Error; err != nil {
+		fmt.Printf("[SteamSync] Lỗi query games: %v\n", err)
+		return
+	}
+
+	dbGamesMap := make(map[int]uint)
+	for _, g := range dbGames {
+		dbGamesMap[g.SteamID] = g.ID
+	}
+
+	// 3.5 Tìm các game bị thiếu và crawl
+	var missingAppIDs []int
+	for _, appID := range allAppIDs {
+		if _, exists := dbGamesMap[appID]; !exists {
+			// Deduplicate if owned and wishlisted
+			found := false
+			for _, m := range missingAppIDs {
+				if m == appID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missingAppIDs = append(missingAppIDs, appID)
+			}
+		}
+	}
+
+	if len(missingAppIDs) > 0 {
+		newGames := s.fetchAndCreateMissingGames(missingAppIDs)
+		// Merge map
+		for k, v := range newGames {
+			dbGamesMap[k] = v
+		}
+	}
+
+	// 4. Lưu logs
+	// Chỉ insert nếu user chưa log game này
+	for _, appID := range ownedAppIDs {
+		if gameID, exists := dbGamesMap[appID]; exists {
+			logEntry := models.GameLog{UserID: userID, GameID: gameID, Status: "completed", LoggedAt: time.Now()}
+			s.db.FirstOrCreate(&logEntry, models.GameLog{UserID: userID, GameID: gameID})
+		}
+	}
+
+	for _, appID := range wishlistAppIDs {
+		if gameID, exists := dbGamesMap[appID]; exists {
+			logEntry := models.GameLog{UserID: userID, GameID: gameID, Status: "backlog", LoggedAt: time.Now()}
+			s.db.FirstOrCreate(&logEntry, models.GameLog{UserID: userID, GameID: gameID})
+		}
+	}
+
+	fmt.Printf("[SteamSync] Hoàn tất đồng bộ cho user %d\n", userID)
 }
 
 func (s *authService) HandleGoogleLogin(code string) (*dto.AuthResponse, error) {
